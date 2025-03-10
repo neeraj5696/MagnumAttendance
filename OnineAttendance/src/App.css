@@ -1,3 +1,13 @@
+/* Loading Message */
+.loading-message {
+  text-align: center;
+  font-size: 18px;
+  color: #007bff;
+  font-weight: bold;
+  margin: 20px 0;
+}
+
+
 /* General Styles */
 body {
   font-family: Arial, sans-serif;

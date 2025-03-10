@@ -47,6 +47,9 @@ const Attendance = () => {
     <div className="attendance-container">
       <h2 className="title">Attendance Records</h2>
 
+      {/* Loading Message */}
+      {loading && <div className="loading-message">Fetching data, please wait...</div>}
+
       {/* Dropdown Filters */}
       <div className="filters">
         {/* Employee Dropdown */}
@@ -73,57 +76,56 @@ const Attendance = () => {
         <button onClick={handleFilter}>OK</button>
       </div>
 
-      {/* Loading State */}
-      {loading && <p className="loading">Loading attendance data...</p>}
-
       {/* Error Handling */}
       {error && <p className="error">{error}</p>}
 
       {/* Attendance Table */}
-      <div className="table-wrapper">
-        <table className="attendance-table">
-          <thead>
-            <tr>
-              <th>Employee Name</th>
-              <th>Department</th>
-              <th>Title</th>
-              <th>Date</th>
-              <th>In Time</th>
-              <th>Out Time</th>
-              <th>Total In Time</th>
-              <th>Total Out Time</th>
-              <th>Working Hours</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.length > 0 ? (
-              filteredData.map((record, index) => (
-                <tr key={index} className={index % 2 === 0 ? "even-row" : "odd-row"}>
-                  <td>{record.Employee_Name}</td>
-                  <td>{record.DEPARTMENT || "--"}</td>
-                  <td>{record.TITLE || "--"}</td>
-                  <td>{record.PunchDate}</td>
-                  <td>{record.InTime || "--"}</td>
-                  <td>{record.OutTime || "--"}</td>
-                  <td>{record.Total_InTime || "--"}</td>
-                  <td>{record.Total_OutTime || "--"}</td>
-                  <td>{record.Actual_Working_Hours || "--"}</td>
-                  <td className={record.Status === "PRESENT" ? "status-present" : "status-absent"}>
-                    {record.Status}
+      {!loading && (
+        <div className="table-wrapper">
+          <table className="attendance-table">
+            <thead>
+              <tr>
+                <th>Employee Name</th>
+                <th>Department</th>
+                <th>Title</th>
+                <th>Date</th>
+                <th>In Time</th>
+                <th>Out Time</th>
+                <th>Total In Time</th>
+                <th>Total Out Time</th>
+                <th>Working Hours</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.length > 0 ? (
+                filteredData.map((record, index) => (
+                  <tr key={index} className={index % 2 === 0 ? "even-row" : "odd-row"}>
+                    <td>{record.Employee_Name}</td>
+                    <td>{record.DEPARTMENT || "--"}</td>
+                    <td>{record.TITLE || "--"}</td>
+                    <td>{record.PunchDate}</td>
+                    <td>{record.InTime || "--"}</td>
+                    <td>{record.OutTime || "--"}</td>
+                    <td>{record.Total_InTime || "--"}</td>
+                    <td>{record.Total_OutTime || "--"}</td>
+                    <td>{record.Actual_Working_Hours || "--"}</td>
+                    <td className={record.Status === "PRESENT" ? "status-present" : "status-absent"}>
+                      {record.Status}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="10" className="no-records">
+                    No records found.
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="10" className="no-records">
-                  No records found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
