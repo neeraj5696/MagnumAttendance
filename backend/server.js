@@ -70,26 +70,15 @@ app.get("/api/test-db", async (req, res) => {
 });
 
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-
-
-
-
-
-// // Attendance API Route
-// app.get("/api/attendance", async (req, res) => {
-//   try {
-//     const pool = await sql.connect();
-   
-
-//     res.json(result.recordset);
-//   } catch (error) {
-//     console.error("❌ Error fetching attendance:", error);
-//     res.status(500).json({ error: "Database query failed" });
-//   }
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port ${PORT}`);
 // });
+
+
+
+
+
+
+
 
 
