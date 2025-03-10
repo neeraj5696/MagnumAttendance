@@ -18,7 +18,7 @@ const Attendance = () => {
   const fetchAttendanceData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("http://localhost:5000/api/test-db"|| "https://magnum-attendancebackenmd.vercel.app/"|| "https://magnum-attendancebackenmd-484gqyvnm-neeraj5696s-projects.vercel.app/");
+      const response = await axios.get("http://localhost:5000/api/test-db");
       setAttendanceData(response.data);
       setFilteredData(response.data);
       setError(null);
