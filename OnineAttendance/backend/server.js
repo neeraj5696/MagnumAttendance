@@ -9,6 +9,11 @@ app.use(cors());
 
 connectDB();
 
+// Root Route - Prints "Hello Magnum"
+app.get("/", (req, res) => {
+  res.send("Hello Magnum");
+});
+
 app.get("/api/test-db", async (req, res) => {
   try {
     const pool = await sql.connect();
