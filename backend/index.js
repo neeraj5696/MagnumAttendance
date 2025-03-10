@@ -17,6 +17,7 @@ app.get("/", (req, res) => {
 app.get("/api/test-db", async (req, res) => {
   try {
     const pool = await sql.connect();
+    console.log("✅ Database connected successfully on Vercel!"); // ✅ Logs in the console instead
     const result = await pool.request().query(`
       WITH Punches AS (
           SELECT USRID, 
