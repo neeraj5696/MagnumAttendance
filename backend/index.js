@@ -62,6 +62,7 @@ app.get("/api/test-db", async (req, res) => {
       GROUP BY FLP.USRID, TU.NM, FLP.PunchDate, FLP.InTime, FLP.OutTime, TU.DEPARTMENT, TU.TITLE
       ORDER BY FLP.USRID, FLP.PunchDate;
     `);
+    
 
     res.json(result.recordset);
   } catch (error) {

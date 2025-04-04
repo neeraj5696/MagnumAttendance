@@ -18,7 +18,7 @@ const Attendance = () => {
     try {
       const response = await axios.get("http://localhost:5000/api/test-db");
       setAttendanceData(response.data);
-      setFilteredData(response.data); // Initially show all data
+      setFilteredData(response.data);
     } catch (error) {
       console.error("Error fetching attendance data:", error);
     }
@@ -27,10 +27,11 @@ const Attendance = () => {
   // Function to handle filter
   const handleFilter = () => {
     let filtered = [...attendanceData];
-    
+
     // Filter by employee if not "All"
     if (selectedEmployee !== "-1") {
-      filtered = filtered.filter(record => record.Employee_ID === selectedEmployee);
+      filtered = filtered.filter(record => record.USRID === selectedEmployee);
+      
     }
 
     setFilteredData(filtered);
@@ -54,32 +55,47 @@ const Attendance = () => {
 
   // Get unique employees for dropdown
   const getUniqueEmployees = () => {
-    const uniqueEmployees = new Set();
-    attendanceData.forEach(record => {
-      if (record.Employee_ID && record.Employee_Name) {
-        uniqueEmployees.add(JSON.stringify({
-          id: record.Employee_ID,
-          name: record.Employee_Name
-        }));
+    if (!attendanceData || attendanceData.length === 0) {
+      return [];
+    }
+
+    // Create a Map to store unique employees using USRID as key
+    const uniqueEmployeesMap = new Map();
+    
+    attendanceData.forEach((record) => {
+      if (record.USRID && record.Employee_Name) {
+        if (!uniqueEmployeesMap.has(record.USRID)) {
+          uniqueEmployeesMap.set(record.USRID, {
+            id: record.USRID,
+            name: record.Employee_Name
+          });
+        }
       }
     });
-    return Array.from(uniqueEmployees).map(emp => JSON.parse(emp));
+    
+    return Array.from(uniqueEmployeesMap.values());
   };
+
+  // Get the unique employees list
+  const uniqueEmployees = getUniqueEmployees();
 
   return (
     <div>
       <section className="pageheader">View / Regularize Attendance</section>
-      
+
       <div className="row">
         <div className="column">Manager: Sameer Priyadarshi</div>
         <div className="column">
-          Employee List: 
-          <select 
-            value={selectedEmployee} 
-            onChange={(e) => setSelectedEmployee(e.target.value)}
+          Employee List:
+          <select
+            value={selectedEmployee}
+            onChange={(e) => {
+              console.log("Selected employee value:", e.target.value);
+              setSelectedEmployee(e.target.value);
+            }}
           >
             <option value="-1">Select</option>
-            {getUniqueEmployees().map(emp => (
+            {uniqueEmployees.map(emp => (
               <option key={emp.id} value={emp.id}>
                 {emp.name}
               </option>
@@ -87,9 +103,9 @@ const Attendance = () => {
           </select>
         </div>
         <div className="column">
-          Month: 
-          <select 
-            value={selectedMonth} 
+          Month:
+          <select
+            value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
           >
             <option value="Jan-25">Jan-25</option>
@@ -98,8 +114,8 @@ const Attendance = () => {
           </select>
         </div>
         <div className="column">
-          <input 
-            type="checkbox" 
+          <input
+            type="checkbox"
             checked={showMispunchesOnly}
             onChange={(e) => setShowMispunchesOnly(e.target.checked)}
           />
