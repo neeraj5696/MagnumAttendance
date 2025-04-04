@@ -146,3 +146,86 @@ body {
   font-size: 18px;
   font-weight: bold;
 }
+
+.pageheader {
+  border: 0.1rem outset red;
+  background-color: #f5bc42;
+  text-align: center;
+  color: white;
+  font-size: 1.5em;
+  margin-bottom: 0.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid;
+}
+
+td {
+  text-align: left;
+  border: 1px solid;
+  padding: 2px;
+  font-size: 0.7em;
+}
+
+th {
+  text-align: center;
+  border: 1px solid;
+  padding: 3px;
+  background-color: #4284f5;
+  color: white;
+  font-size: 0.8em;
+  padding: 1px;
+}
+
+.column {
+  float: left;
+  width: 25%;
+}
+
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+table select {
+  font-size: 0.8em;
+  width: 100%;
+}
+
+button {
+  margin: 0 2px;
+}
+
+input[type="time"] {
+  width: 100%;
+  font-size: 0.8em;
+}
+
+.filter-btn, .reset-btn {
+  margin-left: 10px;
+  padding: 5px 10px;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.filter-btn {
+  background-color: #4284f5;
+}
+
+.reset-btn {
+  background-color: #f54242;
+}
+
+.filter-btn:hover {
+  background-color: #2b5cb3;
+}
+
+.reset-btn:hover {
+  background-color: #b32b2b;
+}

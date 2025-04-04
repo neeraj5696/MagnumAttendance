@@ -1,0 +1,339 @@
+<html>
+<head>
+<title>Ahura Access : Regularization</title>
+<style>
+.pageheader {
+  border: 0.1rem outset red;
+  background-color: #f5bc42;
+  text-align: center;
+  color:white;
+  font-size: 1.5em;
+  margin-bottom:0.5rem;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid;
+}
+td {
+  text-align: left;
+  border: 1px solid;
+  padding: 2px;
+  font-size: 0.7em;
+}
+th {
+  text-align: center;
+  border: 1px solid;
+  padding: 3px;
+  background-color: #4284f5;
+  color:white;
+  font-size: 0.8em;
+  padding:1px;
+}
+.column {
+  float: left;
+  width: 25%;
+}
+
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+table select {
+font-size: 0.8em;
+width:100%;
+}
+</style>
+</head>
+<body>
+<section class="pageheader">View / Regularize Attendance</section>
+<div class="row">
+<div class="column">Manager: Sameer Priyadarshi</div>
+<div class="column">Employee: <select>
+<option value="-1">All - Except Self</option>
+<option value="067XXX">Sameer Priyadarshi</option>
+<option value="067XXX">Priyanka Kumari</option>
+<option value="068XXX">Amruta Mudholkar</option>
+</select></div>
+<div class="column">Month: <select><option value="Jan-25">Jan-25</option><option selected value="Feb-25">Feb-25</option><option value="Mar-25">Mar-25</option></select></div>
+<div class="column"><input type="checkbox">Mispunches</checkbox></div>
+</div>
+<section class="content">
+<table>
+<thead>
+<tr>
+<th colspan="4"></th>
+<th colspan="3">Devices</th>
+<th colspan="3">Regularized</th>
+<th colspan="3"></th>
+</tr>
+<tr>
+<th width="8%">Poornata ID</th>
+<th width="12%">Name</th>
+<th width="10%">Department</th>
+<th width="5%">Date</th>
+<th width="5%">IN</th>
+<th width="5%">OUT</th>
+<th width="5%">Hours</th>
+<th width="5%">IN</th>
+<th width="5%">OUT</th>
+<th width="5%">Hours</th>
+<th width="7%">Status</th>
+<th width="18%">Remarks</th>
+<th width="10%">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr style="background-color: #eb3434;color:white;">
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>16-Feb-25</td>
+<td>08:30</td>
+<td>11:30</td>
+<td>03:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option selected value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>Only Manager Can Regularize by 23-Feb-25 23:59:59</td>
+<td><button title="Save">💾</button><button title="Request Approval">📧</button><button title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>17-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>18-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr style="background-color: #eb3434;color:white;">
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>19-Feb-25</td>
+<td></td>
+<td></td>
+<td>00:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option selected value="A">Absent</option></select></td>
+<td>Regularize Attendance before 26-Feb'25</td>
+<td><button title="Save">💾</button><button title="Request Approval">📧</button><button title="Approve">👍</button></td>
+</tr>
+<tr style="background-color: #eb8934;color:white;">
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>20-Feb-25</td>
+<td>08:30</td>
+<td></td>
+<td>00:00</td>
+<td><input type="time" value="08:30"></input></td>
+<td><input type="time" value="17:30"></input></td>
+<td>09:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option selected value="A">Absent</option></select></td>
+<td>Regularized: Pending for Manager</td>
+<td><button disabled title="Save">💾</button><button title="Request Approval">📧</button><button title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>21-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>22-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Priyanka Kumari</td>
+<td>Business HR</td>
+<td>23-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr style="background-color: #eb3434;color:white;">
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>16-Feb-25</td>
+<td>14:00</td>
+<td>18:00</td>
+<td>04:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option selected value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>Only Manager Can Regularize</td>
+<td><button title="Save">💾</button><button title="Request Approval">📧</button><button title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>17-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>18-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>19-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>20-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option selected value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>21-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr>
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>22-Feb-25</td>
+<td>08:30</td>
+<td>18:30</td>
+<td>10:00</td>
+<td><input type="time"></input></td>
+<td><input type="time"></input></td>
+<td>00:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>No Action Needed</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+<tr style="background-color: #157d0a;color:white;">
+<td>067XXX</td>
+<td>Amruta Mudholkar</td>
+<td>Business HR</td>
+<td>23-Feb-25</td>
+<td></td>
+<td></td>
+<td></td>
+<td><input type="time" value="08:30"></input></td>
+<td><input type="time" value="18:30"></input></td>
+<td>10:00</td>
+<td><select><option value="P">Present</option><option value="H">Half Day</option><option value="A">Absent</option></select></td>
+<td>Regularized</td>
+<td><button disabled title="Save">💾</button><button disabled title="Request Approval">📧</button><button disabled title="Approve">👍</button></td>
+</tr>
+</tbody>
+<tfoot>
+<tr>
+<td colspan="12" style="text-align: right;">Approve All:</td>
+<td><button title="Approve" style="width: 100%;">👍</button></td>
+</tr>
+</tfoot>
+</table>
+</section>
+</body>
+</html>
