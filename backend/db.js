@@ -3,7 +3,9 @@ const sql = require("mssql");
 const dbConfig = {
   user: "sa", // Replace with your DB username
   password: "neerajll", // Replace with your DB password
-  server: "192.168.0.9", // Example: "localhost" or "127.0.0.1"
+  server: 
+  // "192.168.0.9"||
+  "localhost", // Example: "localhost" or "127.0.0.1"
   database: "BioStar2_ac", // The restored database name
   port: parseInt(process.env.DB_PORT, 5000) || 1433, // Ensure port is defined
   options: {

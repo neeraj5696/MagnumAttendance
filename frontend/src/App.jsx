@@ -30,8 +30,7 @@ const Attendance = () => {
 
     // Filter by employee if not "All"
     if (selectedEmployee !== "-1") {
-      filtered = filtered.filter(record => record.USRID === selectedEmployee);
-      
+      filtered = filtered.filter((record) => record.USRID === selectedEmployee);
     }
 
     setFilteredData(filtered);
@@ -47,9 +46,12 @@ const Attendance = () => {
 
   // Function to calculate row background color based on status
   const getRowStyle = (record) => {
-    if (!record.InTime || !record.OutTime) return { backgroundColor: "#eb3434", color: "white" };
-    if (record.Status === "HALF DAY") return { backgroundColor: "#eb8934", color: "white" };
-    if (record.Status === "REGULARIZED") return { backgroundColor: "#157d0a", color: "white" };
+    if (!record.InTime || !record.OutTime)
+      return { backgroundColor: "#eb3434", color: "white" };
+    if (record.Status === "HALF DAY")
+      return { backgroundColor: "#eb8934", color: "white" };
+    if (record.Status === "REGULARIZED")
+      return { backgroundColor: "#157d0a", color: "white" };
     return {};
   };
 
@@ -61,26 +63,30 @@ const Attendance = () => {
 
     // Create a Map to store unique employees using USRID as key
     const uniqueEmployeesMap = new Map();
-    
+
     attendanceData.forEach((record) => {
       if (record.USRID && record.Employee_Name) {
         if (!uniqueEmployeesMap.has(record.USRID)) {
           uniqueEmployeesMap.set(record.USRID, {
             id: record.USRID,
-            name: record.Employee_Name
+            name: record.Employee_Name,
           });
         }
       }
     });
-    
+
     return Array.from(uniqueEmployeesMap.values());
   };
 
   // Get the unique employees list
   const uniqueEmployees = getUniqueEmployees();
 
+  const HandleSave = () => {
+    alert("Button not yet initialized");
+  };
+
   return (
-    <div>
+    <div className="pageheaderr">
       <section className="pageheader">View / Regularize Attendance</section>
 
       <div className="row">
@@ -95,7 +101,7 @@ const Attendance = () => {
             }}
           >
             <option value="-1">Select</option>
-            {uniqueEmployees.map(emp => (
+            {uniqueEmployees.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.name}
               </option>
@@ -142,14 +148,18 @@ const Attendance = () => {
             </tr>
             <tr>
               <th width="8%">Poornata ID</th>
-              <th width="12%">Name</th>
-              <th width="10%">Department</th>
+              <th width="10%">Name</th>
+              <th width="8%">Department</th>
               <th width="5%">Date</th>
               <th width="5%">IN</th>
               <th width="5%">OUT</th>
               <th width="5%">Hours</th>
-              <th width="5%">IN</th>
-              <th width="5%">OUT</th>
+              <th className="settimeE" width="6%">
+                IN
+              </th>
+              <th className="settimeE" width="6%">
+                OUT
+              </th>
               <th width="5%">Hours</th>
               <th width="7%">Status</th>
               <th width="18%">Remarks</th>
@@ -157,38 +167,61 @@ const Attendance = () => {
             </tr>
           </thead>
           <tbody>
-            {(filteredData.length > 0 ? filteredData : attendanceData).map((record, index) => (
-              <tr key={index} style={getRowStyle(record)}>
-                <td>{record.Employee_ID}</td>
-                <td>{record.Employee_Name}</td>
-                <td>{record.DEPARTMENT}</td>
-                <td>{record.PunchDate}</td>
-                <td>{record.InTime || ""}</td>
-                <td>{record.OutTime || ""}</td>
-                <td>{record.Actual_Working_Hours || "00:00"}</td>
-                <td><input type="time" /></td>
-                <td><input type="time" /></td>
-                <td>00:00</td>
-                <td>
-                  <select defaultValue={record.Status === "HALF DAY" ? "H" : "P"}>
-                    <option value="P">Present</option>
-                    <option value="H">Half Day</option>
-                    <option value="A">Absent</option>
-                  </select>
-                </td>
-                <td>{record.Status === "PRESENT" ? "No Action Needed" : "Regularize Attendance"}</td>
-                <td>
-                  <button title="Save">💾</button>
-                  <button title="Request Approval">📧</button>
-                  <button title="Approve">👍</button>
-                </td>
-              </tr>
-            ))}
+            {(filteredData.length > 0 ? filteredData : attendanceData).map(
+              (record, index) => (
+                <tr key={index} style={getRowStyle(record)}>
+                  <td>{record.Employee_ID}</td>
+                  <td>{record.Employee_Name}</td>
+                  <td>{record.DEPARTMENT}</td>
+                  <td>{record.PunchDate}</td>
+                  <td>{record.InTime || ""}</td>
+                  <td>{record.OutTime || ""}</td>
+                  <td>{record.Actual_Working_Hours || "00:00"}</td>
+                  <td className="settime">
+                    <input type="time" />
+                  </td>
+                  <td className="settime">
+                    <input type="time" />
+                  </td>
+                  <td>00:00</td>
+                  <td>
+                   {record.Status} </td>
+                    
+                
+                  <td>
+                    {record.Status === "PRESENT"
+                      ? "No Action Needed"
+                      : "Regularize Attendance"}
+                  </td>
+                  <td>
+                    <button onClick={HandleSave} title="Save">
+                      💾
+                    </button>
+                    <button onClick={HandleSave} title="Request Approval">
+                      📧
+                    </button>
+                    <button onClick={HandleSave} title="Approve">
+                      👍
+                    </button>
+                  </td>
+                </tr>
+              )
+            )}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan="12" style={{ textAlign: "right" }}>Approve All:</td>
-              <td><button title="Approve" style={{ width: "100%" }}>👍</button></td>
+              <td colSpan="12" style={{ textAlign: "right" }}>
+                Approve All:
+              </td>
+              <td>
+                <button
+                  onClick={HandleSave}
+                  title="Approve"
+                  style={{ width: "100%" }}
+                >
+                  👍
+                </button>
+              </td>
             </tr>
           </tfoot>
         </table>

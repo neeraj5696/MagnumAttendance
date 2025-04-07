@@ -156,6 +156,13 @@ body {
   margin-bottom: 0.5rem;
 }
 
+.pageheaderr{
+  margin: 8px;
+ 
+  
+}
+
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -229,3 +236,15 @@ input[type="time"] {
 .reset-btn:hover {
   background-color: #b32b2b;
 }
+
+td.settime input[type="time"] {
+  font-size: 1.7em; /* Make the time input text more visible */
+   /* Make the time input field larger */
+  width: 95%; /* Ensure it doesn't overflow */
+  border: 1px solid #686666;
+  border-radius: 3px;
+  background-color: #f9f9f9;
+}
+
+
+
