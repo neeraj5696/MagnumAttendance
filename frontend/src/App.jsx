@@ -10,6 +10,10 @@ const Attendance = () => {
   const [showMispunchesOnly, setShowMispunchesOnly] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
 
+  // Time input states
+  
+  const [timeInputs, setTimeInputs]= useState({});
+
   useEffect(() => {
     fetchAttendanceData();
   }, []);
@@ -24,11 +28,54 @@ const Attendance = () => {
     }
   };
 
+  const calculateWorkingHours = (inTime, outTime) => {
+    if (!inTime || !outTime) {
+      return "00:00";
+    }
+
+    const inDate = new Date(`1970-01-01T${inTime}:00`);
+    const outDate = new Date(`1970-01-01T${outTime}:00`);
+    const diffInMilliseconds = outDate - inDate;
+
+    if (diffInMilliseconds < 0) {
+      return "00:00"; // Handle cases where outTime is earlier than inTime
+    }
+
+    const hours = Math.floor(diffInMilliseconds / 3600000);
+    const minutes = Math.floor((diffInMilliseconds % 3600000) / 60000);
+
+    const formattedHours = hours.toString().padStart(2, "0");
+    const formattedMinutes = minutes.toString().padStart(2, "0");
+
+    return `${formattedHours}:${formattedMinutes}`;
+  };
+
+  const handleTimeChange = (index, type, value)=>{
+    setTimeInputs(prev =>{
+      const currentRow = prev[index] || {inTime: "", outTime: "", hours: "00:00"}
+      const updatedRow = {
+        ...currentRow, 
+        [type]:value
+      }
+
+      if( type ==="inTime" || type === "outTime") {
+        updatedRow.hours = calculateWorkingHours(
+          type === 'inTime' ? value: currentRow.inTime,
+          type === 'outTime'? value: currentRow.outTime
+        )
+      }
+
+      return {
+        ...prev,
+        [index]:updatedRow
+      };
+    })
+  }
+
   // Function to handle filter
   const handleFilter = () => {
     let filtered = [...attendanceData];
 
-    // Filter by employee if not "All"
     if (selectedEmployee !== "-1") {
       filtered = filtered.filter((record) => record.USRID === selectedEmployee);
     }
@@ -61,7 +108,6 @@ const Attendance = () => {
       return [];
     }
 
-    // Create a Map to store unique employees using USRID as key
     const uniqueEmployeesMap = new Map();
 
     attendanceData.forEach((record) => {
@@ -178,16 +224,22 @@ const Attendance = () => {
                   <td>{record.OutTime || ""}</td>
                   <td>{record.Actual_Working_Hours || "00:00"}</td>
                   <td className="settime">
-                    <input type="time" />
+                    <input
+                      type="time"
+                      value={timeInputs[index]?.inTime || ""}
+                      onChange={(e)=> handleTimeChange(index, 'inTime', e.target.value)}
+                    />
                   </td>
                   <td className="settime">
-                    <input type="time" />
+                    <input
+                      type="time"
+                      value={timeInputs[index]?.outTime || ""}
+                      onChange={(e=>{handleTimeChange(index,"outTime", e.target.value)})}
+                      
+                    />
                   </td>
-                  <td>00:00</td>
-                  <td>
-                   {record.Status} </td>
-                    
-                
+                  <td>{timeInputs[index]?.hours || "00:00"} </td>
+                  <td>{record.Status}</td>
                   <td>
                     {record.Status === "PRESENT"
                       ? "No Action Needed"
