@@ -11,12 +11,23 @@ const Attendance = () => {
   const [isFiltered, setIsFiltered] = useState(false);
 
   // Time input states
-  
-  const [timeInputs, setTimeInputs]= useState({});
+  const [timeInputs, setTimeInputs] = useState({});
 
   useEffect(() => {
     fetchAttendanceData();
   }, []);
+
+  // Add new useEffect to handle filtering when selectedEmployee changes
+  useEffect(() => {
+    if (selectedEmployee !== "-1") {
+      const filtered = attendanceData.filter((record) => record.USRID === selectedEmployee);
+      setFilteredData(filtered);
+      setIsFiltered(true);
+    } else {
+      setFilteredData(attendanceData);
+      setIsFiltered(false);
+    }
+  }, [selectedEmployee, attendanceData]);
 
   const fetchAttendanceData = async () => {
     try {
@@ -213,52 +224,49 @@ const Attendance = () => {
             </tr>
           </thead>
           <tbody>
-            {(filteredData.length > 0 ? filteredData : attendanceData).map(
-              (record, index) => (
-                <tr key={index} style={getRowStyle(record)}>
-                  <td>{record.Employee_ID}</td>
-                  <td>{record.Employee_Name}</td>
-                  <td>{record.DEPARTMENT}</td>
-                  <td>{record.PunchDate}</td>
-                  <td>{record.InTime || ""}</td>
-                  <td>{record.OutTime || ""}</td>
-                  <td>{record.Actual_Working_Hours || "00:00"}</td>
-                  <td className="settime">
-                    <input
-                      type="time"
-                      value={timeInputs[index]?.inTime || ""}
-                      onChange={(e)=> handleTimeChange(index, 'inTime', e.target.value)}
-                    />
-                  </td>
-                  <td className="settime">
-                    <input
-                      type="time"
-                      value={timeInputs[index]?.outTime || ""}
-                      onChange={(e=>{handleTimeChange(index,"outTime", e.target.value)})}
-                      
-                    />
-                  </td>
-                  <td>{timeInputs[index]?.hours || "00:00"} </td>
-                  <td>{record.Status}</td>
-                  <td>
-                    {record.Status === "PRESENT"
-                      ? "No Action Needed"
-                      : "Regularize Attendance"}
-                  </td>
-                  <td>
-                    <button onClick={HandleSave} title="Save">
-                      💾
-                    </button>
-                    <button onClick={HandleSave} title="Request Approval">
-                      📧
-                    </button>
-                    <button onClick={HandleSave} title="Approve">
-                      👍
-                    </button>
-                  </td>
-                </tr>
-              )
-            )}
+            {filteredData.map((record, index) => (
+              <tr key={index} style={getRowStyle(record)}>
+                <td>{record.Employee_ID}</td>
+                <td>{record.Employee_Name}</td>
+                <td>{record.DEPARTMENT}</td>
+                <td>{record.PunchDate}</td>
+                <td>{record.InTime || ""}</td>
+                <td>{record.OutTime || ""}</td>
+                <td>{record.Actual_Working_Hours || "00:00"}</td>
+                <td className="settime">
+                  <input
+                    type="time"
+                    value={timeInputs[index]?.inTime || ""}
+                    onChange={(e) => handleTimeChange(index, "inTime", e.target.value)}
+                  />
+                </td>
+                <td className="settime">
+                  <input
+                    type="time"
+                    value={timeInputs[index]?.outTime || ""}
+                    onChange={(e) => handleTimeChange(index, "outTime", e.target.value)}
+                  />
+                </td>
+                <td>{timeInputs[index]?.hours || "00:00"}</td>
+                <td>{record.Status}</td>
+                <td>
+                  {record.Status === "PRESENT"
+                    ? "No Action Needed"
+                    : "Regularize Attendance"}
+                </td>
+                <td>
+                  <button onClick={HandleSave} title="Save">
+                    💾
+                  </button>
+                  <button onClick={HandleSave} title="Request Approval">
+                    📧
+                  </button>
+                  <button onClick={HandleSave} title="Approve">
+                    👍
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
           <tfoot>
             <tr>
