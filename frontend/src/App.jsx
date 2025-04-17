@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./App.css"; // Import custom CSS
 
+
 const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -9,6 +10,7 @@ const Attendance = () => {
   const [selectedMonth, setSelectedMonth] = useState("Feb-25");
   const [showMispunchesOnly, setShowMispunchesOnly] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
+  const baseUrl = process.env.REACT_APP_API_BASE_URL;
 
   // Time input states
   const [timeInputs, setTimeInputs] = useState({});
@@ -31,7 +33,7 @@ const Attendance = () => {
 
   const fetchAttendanceData = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/test-db");
+      const response = await axios.get(`${baseUrl}/api/test-db`);
       setAttendanceData(response.data);
       setFilteredData(response.data);
     } catch (error) {

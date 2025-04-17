@@ -1,11 +1,16 @@
 const express = require("express");
 const cors = require("cors");
 const { connectDB, sql } = require("./db");
+const baseUrl = process.env.REACT_APP_API_BASE_URL;
 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-app.use(cors()); 
+app.use(cors({
+  origin: `${baseUrl}`, // your frontend URL
+  methods: ["GET", "POST"], // specify allowed methods if needed
+}));
+
 
 connectDB();
 
