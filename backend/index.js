@@ -1,11 +1,13 @@
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const { connectDB, sql } = require("./db");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.BACKEND_PORT || 5000;
 app.use(cors());
 
+// Connect to database
 connectDB();
 
 // Root Route - Prints "Hello Magnum"
@@ -18,7 +20,7 @@ app.get("/api/test-db", async (req, res) => {
     const pool = await sql.connect();
     console.log("✅ Database connected successfully on Vercel!"); // ✅ Logs in the console instead
     const result = await pool.request().query(`
-      WITH Punches AS (
+     WITH Punches AS (
     SELECT USRID, 
            FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,  -- Only Date
            FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,    -- Only Time
@@ -55,13 +57,9 @@ SELECT FLP.USRID,
        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
        CASE 
            WHEN FLP.InTime IS NULL THEN 'ABSENT'
-        
-           WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) >= 4 * 3600 AND DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 7 * 3600 THEN 'HALF DAY'  -- Between 4 and 7 hours
-          
-         
-           WHEN CONVERT(TIME, FLP.InTime) > '10:00:00' THEN 'HALF DAY'  -- InTime after 10:00 AM
-           WHEN CONVERT(TIME, FLP.InTime) > '09:35:00' AND CONVERT(TIME, FLP.InTime) <= '10:00:00' THEN 'PRESENT with Late Count'  -- InTime between 9:35 AM and 10:00 AM
-         
+           WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) >= 4 * 3600 AND DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 7 * 3600 THEN 'HALF DAY'
+           WHEN CONVERT(TIME, FLP.InTime) > '10:00:00' THEN 'HALF DAY'
+           WHEN CONVERT(TIME, FLP.InTime) > '09:35:00' AND CONVERT(TIME, FLP.InTime) <= '10:00:00' THEN 'PRESENT with Late Count'
            ELSE 'PRESENT'
        END AS Status
 FROM FirstLastPunch FLP
@@ -69,7 +67,16 @@ LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDat
 LEFT JOIN BioStar2_ac.dbo.T_USR TU ON FLP.USRID = TU.USRID
 WHERE TU.NM IS NOT NULL
 GROUP BY FLP.USRID, TU.NM, FLP.PunchDate, FLP.InTime, FLP.OutTime, TU.DEPARTMENT, TU.TITLE
+HAVING 
+    CASE 
+        WHEN FLP.InTime IS NULL THEN 'ABSENT'
+        WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) >= 4 * 3600 AND DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 7 * 3600 THEN 'HALF DAY'
+        WHEN CONVERT(TIME, FLP.InTime) > '10:00:00' THEN 'HALF DAY'
+        WHEN CONVERT(TIME, FLP.InTime) > '09:35:00' AND CONVERT(TIME, FLP.InTime) <= '10:00:00' THEN 'PRESENT with Late Count'
+        ELSE 'PRESENT'
+    END NOT IN ('PRESENT', 'PRESENT with Late Count')
 ORDER BY FLP.USRID, FLP.PunchDate;
+
 
     `);
 

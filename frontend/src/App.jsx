@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./App.css"; // Import custom CSS
 
+const API_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
 const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -10,7 +12,6 @@ const Attendance = () => {
   const [selectedMonth, setSelectedMonth] = useState("Feb-25");
   const [showMispunchesOnly, setShowMispunchesOnly] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
- 
 
   // Time input states
   const [timeInputs, setTimeInputs] = useState({});
@@ -22,7 +23,9 @@ const Attendance = () => {
   // Add new useEffect to handle filtering when selectedEmployee changes
   useEffect(() => {
     if (selectedEmployee !== "-1") {
-      const filtered = attendanceData.filter((record) => record.USRID === selectedEmployee);
+      const filtered = attendanceData.filter(
+        (record) => record.USRID === selectedEmployee
+      );
       setFilteredData(filtered);
       setIsFiltered(true);
     } else {
@@ -33,7 +36,8 @@ const Attendance = () => {
 
   const fetchAttendanceData = async () => {
     try {
-      const response = await axios.get(`http://192.168.0.9:5000/api/test-db`);
+      console.log("Fetching from:", API_BASE_URL); // Debug log
+      const response = await axios.get(`${API_BASE_URL}/api/test-db`);
       setAttendanceData(response.data);
       setFilteredData(response.data);
     } catch (error) {
@@ -63,27 +67,31 @@ const Attendance = () => {
     return `${formattedHours}:${formattedMinutes}`;
   };
 
-  const handleTimeChange = (index, type, value)=>{
-    setTimeInputs(prev =>{
-      const currentRow = prev[index] || {inTime: "", outTime: "", hours: "00:00"}
+  const handleTimeChange = (index, type, value) => {
+    setTimeInputs((prev) => {
+      const currentRow = prev[index] || {
+        inTime: "",
+        outTime: "",
+        hours: "00:00",
+      };
       const updatedRow = {
-        ...currentRow, 
-        [type]:value
-      }
+        ...currentRow,
+        [type]: value,
+      };
 
-      if( type ==="inTime" || type === "outTime") {
+      if (type === "inTime" || type === "outTime") {
         updatedRow.hours = calculateWorkingHours(
-          type === 'inTime' ? value: currentRow.inTime,
-          type === 'outTime'? value: currentRow.outTime
-        )
+          type === "inTime" ? value : currentRow.inTime,
+          type === "outTime" ? value : currentRow.outTime
+        );
       }
 
       return {
         ...prev,
-        [index]:updatedRow
+        [index]: updatedRow,
       };
-    })
-  }
+    });
+  };
 
   // Function to handle filter
   const handleFilter = () => {
@@ -112,6 +120,8 @@ const Attendance = () => {
       return { backgroundColor: "#eb8934", color: "white" };
     if (record.Status === "REGULARIZED")
       return { backgroundColor: "#157d0a", color: "white" };
+    if (record.Status === "ABSENT")
+      return { backgroundColor: "#eb3434", color: "white" };
     return {};
   };
 
@@ -239,18 +249,35 @@ const Attendance = () => {
                   <input
                     type="time"
                     value={timeInputs[index]?.inTime || ""}
-                    onChange={(e) => handleTimeChange(index, "inTime", e.target.value)}
+                    onChange={(e) =>
+                      handleTimeChange(index, "inTime", e.target.value)
+                    }
                   />
                 </td>
                 <td className="settime">
                   <input
                     type="time"
                     value={timeInputs[index]?.outTime || ""}
-                    onChange={(e) => handleTimeChange(index, "outTime", e.target.value)}
+                    onChange={(e) =>
+                      handleTimeChange(index, "outTime", e.target.value)
+                    }
                   />
                 </td>
                 <td>{timeInputs[index]?.hours || "00:00"}</td>
-                <td>{record.Status}</td>
+                <td>
+                  <select>
+                    <option value={record.Status} selected>
+                      {record.Status}{" "}
+                    </option>
+                    {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
+                      .filter((status) => status !== record.Status)
+                      .map((status) => (
+                        <option key={status} value={status}>
+                          {status}{" "}
+                        </option>
+                      ))}
+                  </select>
+                </td>
                 <td>
                   {record.Status === "PRESENT"
                     ? "No Action Needed"

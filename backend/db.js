@@ -1,26 +1,43 @@
 const sql = require("mssql");
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const dbConfig = {
-  user: "sa", // Replace with your DB username`
-  password: "neerajll", 
-  server: '192.168.0.9',
-  //"localhost", // Example: "localhost" or "127.0.0.1"
-  database: "BioStar2_ac", // The restored database name
-  port: parseInt(process.env.DB_PORT, 5000) || 1433, // Ensure port is defined
+// Validate required environment variables
+const requiredEnvVars = ['DB_SERVER', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_PORT'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('Current environment variables:', process.env);
+  throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+}
+
+const config = {
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER,
+  database: process.env.DB_NAME,
+  port: parseInt(process.env.DB_PORT),
   options: {
-    encrypt: false, // Set to true if using Azure
-    trustServerCertificate: true, // Required for self-signed certificates
+    encrypt: true,
+    trustServerCertificate: true,
   },
 };
 
-async function connectDB() {
+const connectDB = async () => {
   try {
-    const pool = await sql.connect(dbConfig);
-    console.log("Connected to SQL Server successfully!");
-    return pool;
-  } catch (err) {
-    console.error("Database connection failed!", err);
+    console.log('Attempting to connect to database with config:', {
+      server: config.server,
+      database: config.database,
+      port: config.port,
+      user: config.user
+    });
+    
+    await sql.connect(config);
+    console.log("✅ Database connected successfully!");
+  } catch (error) {
+    console.error("❌ Database connection failed:", error);
+    throw error;
   }
-}
+};
 
 module.exports = { connectDB, sql };
