@@ -1,16 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const { connectDB, sql } = require("./db");
-const baseUrl = process.env.REACT_APP_API_BASE_URL;
-
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-app.use(cors({
-  origin: `${baseUrl}`, // your frontend URL
-  methods: ["GET", "POST"], // specify allowed methods if needed
-}));
-
+app.use(cors());
 
 connectDB();
 
@@ -78,7 +72,6 @@ GROUP BY FLP.USRID, TU.NM, FLP.PunchDate, FLP.InTime, FLP.OutTime, TU.DEPARTMENT
 ORDER BY FLP.USRID, FLP.PunchDate;
 
     `);
-    
 
     res.json(result.recordset);
   } catch (error) {
@@ -87,16 +80,6 @@ ORDER BY FLP.USRID, FLP.PunchDate;
   }
 });
 
-
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-
-
-
-
-
-
-
-
