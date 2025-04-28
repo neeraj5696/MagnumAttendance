@@ -6,6 +6,7 @@ const { connectDB, sql } = require("./db");
 const app = express();
 const PORT = process.env.BACKEND_PORT || 5000;
 app.use(cors());
+app.use(express.json());
 
 // Connect to database
 connectDB();
@@ -83,6 +84,168 @@ ORDER BY FLP.USRID, FLP.PunchDate;
     res.json(result.recordset);
   } catch (error) {
     console.error("❌ Database test failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// First, add body parser middleware to handle JSON requests
+app.use(express.json());
+
+// Save attendance route
+app.post("/api/save-attendance", async (req, res) => {
+  try {
+    const { USRID, PunchDate, InTime, OutTime, Status, Reason } = req.body;
+    console.log(USRID, PunchDate, InTime, OutTime, Status, Reason)
+    
+    const pool = await sql.connect();
+    
+    // Check if record exists
+    const checkResult = await pool.request()
+      .input('USRID', sql.VarChar, USRID)
+      .input('PunchDate', sql.VarChar, PunchDate)
+      .query(`SELECT * FROM T_EmpReq WHERE USRID = @USRID AND PunchDate = @PunchDate`);
+    
+    if (checkResult.recordset.length > 0) {
+      // Update existing record
+      await pool.request()
+        .input('USRID', sql.VarChar, USRID)
+        .input('PunchDate', sql.VarChar, PunchDate)
+        .input('InTime', sql.VarChar, InTime || null)
+        .input('OutTime', sql.VarChar, OutTime || null)
+        .input('Status', sql.VarChar, Status)
+        .input('Reason', sql.VarChar, Reason)
+        .input('UpdatedDate', sql.DateTime, new Date())
+        .query(`
+          UPDATE T_EmpReq 
+          SET InTime = @InTime, 
+              OutTime = @OutTime, 
+              Status = @Status, 
+              Reason = @Reason,
+              UpdatedDate = @UpdatedDate
+          WHERE USRID = @USRID AND PunchDate = @PunchDate
+        `);
+    } else {
+      // Insert new record
+      await pool.request()
+        .input('USRID', sql.VarChar, USRID)
+        .input('PunchDate', sql.VarChar, PunchDate)
+        .input('InTime', sql.VarChar, InTime || null)
+        .input('OutTime', sql.VarChar, OutTime || null)
+        .input('Status', sql.VarChar, Status)
+        .input('Reason', sql.VarChar, Reason)
+        .input('CreatedDate', sql.DateTime, new Date())
+        .input('IsApproved', sql.Bit, 0)
+        .input('ApprovalRequested', sql.Bit, 0)
+        .query(`
+          INSERT INTO T_EmpReq (USRID, PunchDate, InTime, OutTime, Status, Reason, CreatedDate, IsApproved, ApprovalRequested)
+          VALUES (@USRID, @PunchDate, @InTime, @OutTime, @Status, @Reason, @CreatedDate, @IsApproved, @ApprovalRequested)
+        `);
+    }
+    
+    res.status(200).json({ message: "Attendance saved successfully" });
+  } catch (error) {
+    console.error("Error saving attendance:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Request approval route
+app.post("/api/request-approval", async (req, res) => {
+  try {
+    const { USRID, PunchDate, Status, Reason } = req.body;
+    
+    const pool = await sql.connect();
+    
+    // Check if record exists
+    const checkResult = await pool.request()
+      .input('USRID', sql.VarChar, USRID)
+      .input('PunchDate', sql.VarChar, PunchDate)
+      .query(`SELECT * FROM T_EmpReq WHERE USRID = @USRID AND PunchDate = @PunchDate`);
+    
+    if (checkResult.recordset.length > 0) {
+      // Update existing record
+      await pool.request()
+        .input('USRID', sql.VarChar, USRID)
+        .input('PunchDate', sql.VarChar, PunchDate)
+        .input('Status', sql.VarChar, Status)
+        .input('Reason', sql.VarChar, Reason)
+        .input('UpdatedDate', sql.DateTime, new Date())
+        .input('ApprovalRequested', sql.Bit, 1)
+        .query(`
+          UPDATE T_EmpReq 
+          SET Status = @Status, 
+              Reason = @Reason,
+              UpdatedDate = @UpdatedDate,
+              ApprovalRequested = @ApprovalRequested
+          WHERE USRID = @USRID AND PunchDate = @PunchDate
+        `);
+    } else {
+      // Insert new record
+      await pool.request()
+        .input('USRID', sql.VarChar, USRID)
+        .input('PunchDate', sql.VarChar, PunchDate)
+        .input('Status', sql.VarChar, Status)
+        .input('Reason', sql.VarChar, Reason)
+        .input('CreatedDate', sql.DateTime, new Date())
+        .input('IsApproved', sql.Bit, 0)
+        .input('ApprovalRequested', sql.Bit, 1)
+        .query(`
+          INSERT INTO T_EmpReq (USRID, PunchDate, Status, Reason, CreatedDate, IsApproved, ApprovalRequested)
+          VALUES (@USRID, @PunchDate, @Status, @Reason, @CreatedDate, @IsApproved, @ApprovalRequested)
+        `);
+    }
+    
+    res.status(200).json({ message: "Approval requested successfully" });
+  } catch (error) {
+    console.error("Error requesting approval:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Approve attendance route
+app.post("/api/approve-attendance", async (req, res) => {
+  try {
+    const { USRID, PunchDate } = req.body;
+    
+    const pool = await sql.connect();
+    
+    await pool.request()
+      .input('USRID', sql.VarChar, USRID)
+      .input('PunchDate', sql.VarChar, PunchDate)
+      .input('IsApproved', sql.Bit, 1)
+      .input('ApprovedDate', sql.DateTime, new Date())
+      .query(`
+        UPDATE T_EmpReq 
+        SET IsApproved = @IsApproved,
+            ApprovedDate = @ApprovedDate
+        WHERE USRID = @USRID AND PunchDate = @PunchDate
+      `);
+    
+    res.status(200).json({ message: "Attendance approved successfully" });
+  } catch (error) {
+    console.error("Error approving attendance:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Approve all attendance route
+app.post("/api/approve-all", async (req, res) => {
+  try {
+    const pool = await sql.connect();
+    
+    await pool.request()
+      .input('IsApproved', sql.Bit, 1)
+      .input('ApprovedDate', sql.DateTime, new Date())
+      .query(`
+        UPDATE T_EmpReq 
+        SET IsApproved = @IsApproved,
+            ApprovedDate = @ApprovedDate
+        WHERE ApprovalRequested = 1 AND IsApproved = 0
+      `);
+    
+    res.status(200).json({ message: "All attendance records approved successfully" });
+  } catch (error) {
+    console.error("Error approving all attendance:", error);
     res.status(500).json({ error: error.message });
   }
 });

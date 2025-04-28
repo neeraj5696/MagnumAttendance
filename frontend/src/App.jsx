@@ -12,6 +12,8 @@ const Attendance = () => {
   const [selectedMonth, setSelectedMonth] = useState("Feb-25");
   const [showMispunchesOnly, setShowMispunchesOnly] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
+  const [statusInputs, setStatusInputs] = useState({});
+  const [reasonInputs, setReasonInputs] = useState({});
 
   // Time input states
   const [timeInputs, setTimeInputs] = useState({});
@@ -93,6 +95,80 @@ const Attendance = () => {
     });
   };
 
+  const HandleSave = async (index) => {
+    const record = filteredData[index];
+    const timeInput = timeInputs[index] || {};
+    const statusInput = statusInputs[index] || record.Status;
+    const reasonInput = reasonInputs[index] || "";
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/save-attendance`, {
+        USRID: record.USRID,
+        PunchDate: record.PunchDate,
+        InTime: timeInput.inTime,
+        OutTime: timeInput.outTime,
+        Status: statusInput,
+        Reason: reasonInput,
+      });
+
+      alert("Attendance saved successfully!");
+      fetchAttendanceData(); // Refresh data
+    } catch (error) {
+      console.error("Error saving attendance:", error);
+      alert("Error saving attendance. Please try again.");
+    }
+  };
+
+  const handleRequestApproval = async (index) => {
+    const record = filteredData[index];
+    const timeInput = timeInputs[index] || {};
+    const statusInput = statusInputs[index] || record.Status;
+    const reasonInput = reasonInputs[index] || "";
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/request-approval`, {
+        USRID: record.USRID,
+        PunchDate: record.PunchDate,
+        Status: statusInput,
+        Reason: reasonInput,
+      });
+
+      alert("Approval requested successfully!");
+      fetchAttendanceData(); // Refresh data
+    } catch (error) {
+      console.error("Error requesting approval:", error);
+      alert("Error requesting approval. Please try again.");
+    }
+  };
+
+  const HandleApprove = async (index) => {
+    const record = filteredData[index];
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/approve-attendance`, {
+        USRID: record.USRID,
+        PunchDate: record.PunchDate,
+      });
+
+      alert("Attendance approved successfully!");
+      fetchAttendanceData(); // Refresh data
+    } catch (error) {
+      console.error("Error approving attendance:", error);
+      alert("Error approving attendance. Please try again.");
+    }
+  };
+
+  const HandleApproveAll = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/approve-all`);
+      alert("All attendance records approved successfully!");
+      fetchAttendanceData(); // Refresh data
+    } catch (error) {
+      console.error("Error approving all attendance:", error);
+      alert("Error approving all attendance. Please try again.");
+    }
+  };
+
   // Function to handle filter
   const handleFilter = () => {
     let filtered = [...attendanceData];
@@ -149,10 +225,6 @@ const Attendance = () => {
 
   // Get the unique employees list
   const uniqueEmployees = getUniqueEmployees();
-
-  const HandleSave = () => {
-    alert("Button not yet initialized");
-  };
 
   return (
     <div className="pageheaderr">
@@ -265,15 +337,16 @@ const Attendance = () => {
                 </td>
                 <td>{timeInputs[index]?.hours || "00:00"}</td>
                 <td>
-                  <select>
-                    <option value={record.Status} selected>
-                      {record.Status}{" "}
-                    </option>
+                  <select
+                    value={statusInputs[index] || record.Status}
+                    onChange={(e) => handleStatusChange(index, e.target.value)}
+                  >
+                    <option value={record.Status}>{record.Status}</option>
                     {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
                       .filter((status) => status !== record.Status)
                       .map((status) => (
                         <option key={status} value={status}>
-                          {status}{" "}
+                          {status}
                         </option>
                       ))}
                   </select>
@@ -284,13 +357,16 @@ const Attendance = () => {
                     : "Regularize Attendance"}
                 </td>
                 <td>
-                  <button onClick={HandleSave} title="Save">
+                  <button onClick={() => HandleSave(index)} title="Save">
                     💾
                   </button>
-                  <button onClick={HandleSave} title="Request Approval">
+                  <button
+                    onClick={() => handleRequestApproval(index)}
+                    title="Request Approval"
+                  >
                     📧
                   </button>
-                  <button onClick={HandleSave} title="Approve">
+                  <button onClick={()=> HandleApprove(index)} title="Approve">
                     👍
                   </button>
                 </td>
@@ -304,7 +380,7 @@ const Attendance = () => {
               </td>
               <td>
                 <button
-                  onClick={HandleSave}
+                  onClick={()=>HandleApproveAll}
                   title="Approve"
                   style={{ width: "100%" }}
                 >
