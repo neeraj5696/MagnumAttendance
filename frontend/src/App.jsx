@@ -5,6 +5,9 @@ import "./App.css"; // Import custom CSS
 const API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
+// Add console log to check environment variable
+console.log("API_BASE_URL:", API_BASE_URL);
+
 const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -95,27 +98,40 @@ const Attendance = () => {
     });
   };
 
+  const handleStatusChange = (index, value) => {
+    setStatusInputs((prev) => ({
+      ...prev,
+      [index]: value,
+    }));
+  };
+
   const HandleSave = async (index) => {
     const record = filteredData[index];
     const timeInput = timeInputs[index] || {};
     const statusInput = statusInputs[index] || record.Status;
     const reasonInput = reasonInputs[index] || "";
-
+    
+    const saveData = {
+      USRID: record.USRID,
+      PunchDate: record.PunchDate,
+      InTime: timeInput.inTime || record.InTime,
+      OutTime: timeInput.outTime || record.OutTime,
+      Status: statusInput,
+      Reason: reasonInput,
+    };
+    
+    // Added: Show data in console log and alert before sending
+    console.log("Data to be sent:", saveData);
+    alert(`Data to be sent: ${JSON.stringify(saveData, null, 2)}`);
+    
     try {
-      await axios.post(`${API_BASE_URL}/api/save-attendance`, {
-        USRID: record.USRID,
-        PunchDate: record.PunchDate,
-        InTime: timeInput.inTime,
-        OutTime: timeInput.outTime,
-        Status: statusInput,
-        Reason: reasonInput,
-      });
-
+      const response = await axios.post(`${API_BASE_URL}/api/save-attendance`, saveData);
+      console.log("Save response:", response.data);
       alert("Attendance saved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error saving attendance:", error);
-      alert("Error saving attendance. Please try again.");
+      console.error("Error saving attendance:", error.response?.data || error.message);
+      alert(`Error saving attendance: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -125,47 +141,57 @@ const Attendance = () => {
     const statusInput = statusInputs[index] || record.Status;
     const reasonInput = reasonInputs[index] || "";
 
-    try {
-      await axios.post(`${API_BASE_URL}/api/request-approval`, {
-        USRID: record.USRID,
-        PunchDate: record.PunchDate,
-        Status: statusInput,
-        Reason: reasonInput,
-      });
+    const approvalData = {
+      USRID: record.USRID,
+      PunchDate: record.PunchDate,
+      Status: statusInput,
+      Reason: reasonInput,
+    };
 
+    console.log("Requesting approval with data:", approvalData);
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/request-approval`, approvalData);
+      console.log("Approval request response:", response.data);
       alert("Approval requested successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error requesting approval:", error);
-      alert("Error requesting approval. Please try again.");
+      console.error("Error requesting approval:", error.response?.data || error.message);
+      alert(`Error requesting approval: ${error.response?.data?.error || error.message}`);
     }
   };
 
   const HandleApprove = async (index) => {
     const record = filteredData[index];
+    const approveData = {
+      USRID: record.USRID,
+      PunchDate: record.PunchDate,
+    };
+
+    console.log("Approving attendance with data:", approveData);
 
     try {
-      await axios.post(`${API_BASE_URL}/api/approve-attendance`, {
-        USRID: record.USRID,
-        PunchDate: record.PunchDate,
-      });
-
+      const response = await axios.post(`${API_BASE_URL}/api/approve-attendance`, approveData);
+      console.log("Approve response:", response.data);
       alert("Attendance approved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error approving attendance:", error);
-      alert("Error approving attendance. Please try again.");
+      console.error("Error approving attendance:", error.response?.data || error.message);
+      alert(`Error approving attendance: ${error.response?.data?.error || error.message}`);
     }
   };
 
   const HandleApproveAll = async () => {
+    console.log("Approving all attendance records");
+
     try {
-      await axios.post(`${API_BASE_URL}/api/approve-all`);
+      const response = await axios.post(`${API_BASE_URL}/api/approve-all`);
+      console.log("Approve all response:", response.data);
       alert("All attendance records approved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error approving all attendance:", error);
-      alert("Error approving all attendance. Please try again.");
+      console.error("Error approving all attendance:", error.response?.data || error.message);
+      alert(`Error approving all attendance: ${error.response?.data?.error || error.message}`);
     }
   };
 

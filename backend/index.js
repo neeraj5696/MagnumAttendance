@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { connectDB, sql } = require("./db");
@@ -94,55 +94,86 @@ app.use(express.json());
 // Save attendance route
 app.post("/api/save-attendance", async (req, res) => {
   try {
+    // Log the complete request body first
+    console.log("Raw request body:", req.body);
+
     const { USRID, PunchDate, InTime, OutTime, Status, Reason } = req.body;
-    console.log(USRID, PunchDate, InTime, OutTime, Status, Reason)
-    
+
+    // More detailed logging of the extracted data
+    console.log("--------- ATTENDANCE DATA RECEIVED ---------");
+    console.log(`USRID: ${USRID} (${typeof USRID})`);
+    console.log(`PunchDate: ${PunchDate} (${typeof PunchDate})`);
+    console.log(`InTime: ${InTime} (${typeof InTime})`);
+    console.log(`OutTime: ${OutTime} (${typeof OutTime})`);
+    console.log(`Status: ${Status} (${typeof Status})`);
+    console.log(`Reason: ${Reason} (${typeof Reason})`);
+    console.log("--------------------------------------------");
+
+    // Validation
+    if (!USRID || !PunchDate) {
+      console.error("Missing required fields: ", {
+        USRID: USRID ? "✓" : "✗",
+        PunchDate: PunchDate ? "✓" : "✗",
+      });
+      throw new Error("USRID and PunchDate are required");
+    }
+
     const pool = await sql.connect();
-    
     // Check if record exists
-    const checkResult = await pool.request()
-      .input('USRID', sql.VarChar, USRID)
-      .input('PunchDate', sql.VarChar, PunchDate)
-      .query(`SELECT * FROM T_EmpReq WHERE USRID = @USRID AND PunchDate = @PunchDate`);
     
+    const checkResult = await pool
+    .request()
+    .input("UserID", sql.VarChar, USRID)
+    .input("USRID", sql.VarChar, USRID)
+    .input("Date", sql.VarChar, PunchDate)
+    .query(`SELECT * FROM T_EmpReq WHERE UserID = @UserID AND Date = @Date`);
+  
+
     if (checkResult.recordset.length > 0) {
-      // Update existing record
-      await pool.request()
-        .input('USRID', sql.VarChar, USRID)
-        .input('PunchDate', sql.VarChar, PunchDate)
-        .input('InTime', sql.VarChar, InTime || null)
-        .input('OutTime', sql.VarChar, OutTime || null)
-        .input('Status', sql.VarChar, Status)
-        .input('Reason', sql.VarChar, Reason)
-        .input('UpdatedDate', sql.DateTime, new Date())
-        .query(`
-          UPDATE T_EmpReq 
-          SET InTime = @InTime, 
-              OutTime = @OutTime, 
-              Status = @Status, 
-              Reason = @Reason,
-              UpdatedDate = @UpdatedDate
-          WHERE USRID = @USRID AND PunchDate = @PunchDate
-        `);
+     // Update existing record
+      await pool
+        .request()
+        .input("UserID", sql.VarChar, USRID)
+        .input("PunchDate", sql.VarChar, PunchDate)
+        .input("InTime", sql.VarChar, InTime || null)
+        .input("OutTime", sql.VarChar, OutTime || null)
+        .input("Status", sql.VarChar, Status)
+        .input("Reason", sql.VarChar, Reason)
+        .input("UpdatedDate", sql.DateTime, new Date()).query(`
+                UPDATE T_EmpReq 
+                SET InTime = @InTime, 
+                    OutTime = @OutTime, 
+                    Status = @Status, 
+                    Reason = @Reason,
+                    UpdatedDate = @UpdatedDate
+                WHERE USRID = @USRID AND SRVDT = @PunchDate
+              `);
+      console.log("Updated existing attendance record");
     } else {
       // Insert new record
-      await pool.request()
-        .input('USRID', sql.VarChar, USRID)
-        .input('PunchDate', sql.VarChar, PunchDate)
-        .input('InTime', sql.VarChar, InTime || null)
-        .input('OutTime', sql.VarChar, OutTime || null)
-        .input('Status', sql.VarChar, Status)
-        .input('Reason', sql.VarChar, Reason)
-        .input('CreatedDate', sql.DateTime, new Date())
-        .input('IsApproved', sql.Bit, 0)
-        .input('ApprovalRequested', sql.Bit, 0)
-        .query(`
-          INSERT INTO T_EmpReq (USRID, PunchDate, InTime, OutTime, Status, Reason, CreatedDate, IsApproved, ApprovalRequested)
-          VALUES (@USRID, @PunchDate, @InTime, @OutTime, @Status, @Reason, @CreatedDate, @IsApproved, @ApprovalRequested)
-        `);
+      await pool
+        .request()
+       
+        
+        .input("InTime", sql.VarChar, InTime || null)
+        .input("OutTime", sql.VarChar, OutTime || null)
+        .input("Status", sql.VarChar, Status)
+        .input("Reason", sql.VarChar, Reason|| null)
+        .input("CreatedDate", sql.DateTime, new Date())
+        .input("IsApproved", sql.Bit, 0)
+        .input("ApprovalRequested", sql.Bit, 0).query(`
+                INSERT INTO T_EmpReq (UserID)
+                VALUES (@USRID)
+              `);
+      console.log("Created new attendance record");
     }
-    
-    res.status(200).json({ message: "Attendance saved successfully" });
+
+    // Success response
+    console.log("Attendance data processed successfully");
+    res.status(200).json({
+      message: "Attendance saved successfully",
+      receivedData: { USRID, PunchDate, InTime, OutTime, Status, Reason },
+    });
   } catch (error) {
     console.error("Error saving attendance:", error);
     res.status(500).json({ error: error.message });
@@ -153,48 +184,61 @@ app.post("/api/save-attendance", async (req, res) => {
 app.post("/api/request-approval", async (req, res) => {
   try {
     const { USRID, PunchDate, Status, Reason } = req.body;
-    
+    console.log("Received approval request with data:", {
+      USRID,
+      PunchDate,
+      Status,
+      Reason,
+    });
+
+    if (!USRID || !PunchDate) {
+      throw new Error("USRID and PunchDate are required");
+    }
+
     const pool = await sql.connect();
-    
+
     // Check if record exists
-    const checkResult = await pool.request()
-      .input('USRID', sql.VarChar, USRID)
-      .input('PunchDate', sql.VarChar, PunchDate)
-      .query(`SELECT * FROM T_EmpReq WHERE USRID = @USRID AND PunchDate = @PunchDate`);
-    
+    const checkResult = await pool
+      .request()
+      .input("UserID", sql.VarChar, UserID)
+      .input("Date", sql.VarChar, Date)
+      .query(`SELECT * FROM T_EmpReq WHERE UserID = @UserID AND Date = @Date`);
+
     if (checkResult.recordset.length > 0) {
       // Update existing record
-      await pool.request()
-        .input('USRID', sql.VarChar, USRID)
-        .input('PunchDate', sql.VarChar, PunchDate)
-        .input('Status', sql.VarChar, Status)
-        .input('Reason', sql.VarChar, Reason)
-        .input('UpdatedDate', sql.DateTime, new Date())
-        .input('ApprovalRequested', sql.Bit, 1)
-        .query(`
+      await pool
+        .request()
+        .input("UserID", sql.VarChar, UserID)
+        .input("Date", sql.VarChar, Date)
+        .input("Status", sql.VarChar, Status)
+        .input("Reason", sql.VarChar, Reason)
+        .input("UpdatedDate", sql.DateTime, new Date())
+        .input("ApprovalRequested", sql.Bit, 1).query(`
           UPDATE T_EmpReq 
           SET Status = @Status, 
               Reason = @Reason,
               UpdatedDate = @UpdatedDate,
               ApprovalRequested = @ApprovalRequested
-          WHERE USRID = @USRID AND PunchDate = @PunchDate
+          WHERE USRID = @USRID AND SRVDT = @PunchDate
         `);
+      console.log("Updated existing approval request");
     } else {
       // Insert new record
-      await pool.request()
-        .input('USRID', sql.VarChar, USRID)
-        .input('PunchDate', sql.VarChar, PunchDate)
-        .input('Status', sql.VarChar, Status)
-        .input('Reason', sql.VarChar, Reason)
-        .input('CreatedDate', sql.DateTime, new Date())
-        .input('IsApproved', sql.Bit, 0)
-        .input('ApprovalRequested', sql.Bit, 1)
-        .query(`
-          INSERT INTO T_EmpReq (USRID, PunchDate, Status, Reason, CreatedDate, IsApproved, ApprovalRequested)
+      await pool
+        .request()
+        .input("USRID", sql.VarChar, USRID)
+        .input("PunchDate", sql.VarChar, PunchDate)
+        .input("Status", sql.VarChar, Status)
+        .input("Reason", sql.VarChar, Reason)
+        .input("CreatedDate", sql.DateTime, new Date())
+        .input("IsApproved", sql.Bit, 0)
+        .input("ApprovalRequested", sql.Bit, 1).query(`
+          INSERT INTO T_EmpReq (USRID, SRVDT, Status, Reason, CreatedDate, IsApproved, ApprovalRequested)
           VALUES (@USRID, @PunchDate, @Status, @Reason, @CreatedDate, @IsApproved, @ApprovalRequested)
         `);
+      console.log("Created new approval request");
     }
-    
+
     res.status(200).json({ message: "Approval requested successfully" });
   } catch (error) {
     console.error("Error requesting approval:", error);
@@ -206,21 +250,34 @@ app.post("/api/request-approval", async (req, res) => {
 app.post("/api/approve-attendance", async (req, res) => {
   try {
     const { USRID, PunchDate } = req.body;
-    
+    console.log("Received approve attendance request with data:", {
+      USRID,
+      PunchDate,
+    });
+
+    if (!USRID || !PunchDate) {
+      throw new Error("USRID and PunchDate are required");
+    }
+
     const pool = await sql.connect();
-    
-    await pool.request()
-      .input('USRID', sql.VarChar, USRID)
-      .input('PunchDate', sql.VarChar, PunchDate)
-      .input('IsApproved', sql.Bit, 1)
-      .input('ApprovedDate', sql.DateTime, new Date())
-      .query(`
+
+    const result = await pool
+      .request()
+      .input("USRID", sql.VarChar, USRID)
+      .input("PunchDate", sql.VarChar, PunchDate)
+      .input("IsApproved", sql.Bit, 1)
+      .input("ApprovedDate", sql.DateTime, new Date()).query(`
         UPDATE T_EmpReq 
         SET IsApproved = @IsApproved,
             ApprovedDate = @ApprovedDate
-        WHERE USRID = @USRID AND PunchDate = @PunchDate
+        WHERE USRID = @USRID AND SRVDT = @PunchDate
       `);
-    
+
+    console.log(
+      "Approved attendance record:",
+      result.rowsAffected[0] > 0 ? "Success" : "No records updated"
+    );
+
     res.status(200).json({ message: "Attendance approved successfully" });
   } catch (error) {
     console.error("Error approving attendance:", error);
@@ -231,19 +288,29 @@ app.post("/api/approve-attendance", async (req, res) => {
 // Approve all attendance route
 app.post("/api/approve-all", async (req, res) => {
   try {
+    console.log("Received approve all attendance request");
+
     const pool = await sql.connect();
-    
-    await pool.request()
-      .input('IsApproved', sql.Bit, 1)
-      .input('ApprovedDate', sql.DateTime, new Date())
-      .query(`
+
+    const result = await pool
+      .request()
+      .input("IsApproved", sql.Bit, 1)
+      .input("ApprovedDate", sql.DateTime, new Date()).query(`
         UPDATE T_EmpReq 
         SET IsApproved = @IsApproved,
             ApprovedDate = @ApprovedDate
         WHERE ApprovalRequested = 1 AND IsApproved = 0
       `);
-    
-    res.status(200).json({ message: "All attendance records approved successfully" });
+
+    console.log(
+      "Approved all attendance records:",
+      result.rowsAffected[0],
+      "records updated"
+    );
+
+    res
+      .status(200)
+      .json({ message: "All attendance records approved successfully" });
   } catch (error) {
     console.error("Error approving all attendance:", error);
     res.status(500).json({ error: error.message });
