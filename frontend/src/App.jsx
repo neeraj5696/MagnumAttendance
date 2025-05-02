@@ -2,8 +2,11 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./App.css"; // Import custom CSS
 
-const API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+
+
+// makeing the dynaic backend address
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000`;
+
 
 // Add console log to check environment variable
 console.log("API_BASE_URL:", API_BASE_URL);
@@ -104,20 +107,59 @@ const Attendance = () => {
       [index]: value,
     }));
   };
+  function getCurrentSQLDateTime() {
+    const now = new Date();
+  
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+  
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+  
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+  }
+  
+  const sqlDateTime = getCurrentSQLDateTime();
+  
+  
+
+  const formatDateTime = (date, time) => {
+    if (!time) return null;
+    // Ensure time is in HH:mm:ss format
+    const timeParts = time.split(':');
+    const formattedTime = timeParts.length === 2 
+      ? `${time}:00`  // Add seconds if missing
+      : time;
+    // Format to match SQL datetime: 'YYYY-MM-DD HH:mm:ss.000'
+    return `${date} ${formattedTime}.000`;
+  };
 
   const HandleSave = async (index) => {
     const record = filteredData[index];
     const timeInput = timeInputs[index] || {};
     const statusInput = statusInputs[index] || record.Status;
     const reasonInput = reasonInputs[index] || "";
+    const DEPARTMENT = record.DEPARTMENT;
+    const EmpDate = sqlDateTime;
+    
+    // Format the datetime values
+    const formattedInTime = formatDateTime(record.PunchDate, timeInput.inTime);
+    const formattedOutTime = formatDateTime(record.PunchDate, timeInput.outTime);
     
     const saveData = {
       USRID: record.USRID,
       PunchDate: record.PunchDate,
-      InTime: timeInput.inTime || record.InTime,
-      OutTime: timeInput.outTime || record.OutTime,
+      InTime: formattedInTime,
+      OutTime: formattedOutTime,
       Status: statusInput,
       Reason: reasonInput,
+      EmpReqShow: 'No',
+      ManagerApproval: 'Pending',
+      DEPARTMENT: DEPARTMENT,
+      EmpDate: EmpDate,
     };
     
     // Added: Show data in console log and alert before sending

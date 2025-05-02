@@ -97,7 +97,18 @@ app.post("/api/save-attendance", async (req, res) => {
     // Log the complete request body first
     console.log("Raw request body:", req.body);
 
-    const { USRID, PunchDate, InTime, OutTime, Status, Reason } = req.body;
+    const { 
+      USRID,           // Maps to UserId column
+      PunchDate,       // Maps to Date column
+      InTime,          // Maps to InTime column (already formatted as 'YYYY-MM-DD HH:mm:ss.000')
+      OutTime,         // Maps to OutTime column (already formatted as 'YYYY-MM-DD HH:mm:ss.000')
+      Status,          // Maps to Status column
+      Reason,          // Maps to EmpReason column
+      EmpReqShow,      // Maps to EmpReqShow column
+      ManagerApproval, // Maps to ManagerApproval column
+      DEPARTMENT,      // Maps to DEPARTMENT column
+      EmpDate          // Maps to EmpDate column
+    } = req.body;
 
     // More detailed logging of the extracted data
     console.log("--------- ATTENDANCE DATA RECEIVED ---------");
@@ -107,6 +118,10 @@ app.post("/api/save-attendance", async (req, res) => {
     console.log(`OutTime: ${OutTime} (${typeof OutTime})`);
     console.log(`Status: ${Status} (${typeof Status})`);
     console.log(`Reason: ${Reason} (${typeof Reason})`);
+    console.log(`EmpReqShow: ${EmpReqShow} (${typeof EmpReqShow})`);
+    console.log(`ManagerApproval: ${ManagerApproval} (${typeof ManagerApproval})`);
+    console.log(`DEPARTMENT: ${DEPARTMENT} (${typeof DEPARTMENT})`);
+    console.log(`EmpDate: ${EmpDate} (${typeof EmpDate})`);
     console.log("--------------------------------------------");
 
     // Validation
@@ -119,66 +134,136 @@ app.post("/api/save-attendance", async (req, res) => {
     }
 
     const pool = await sql.connect();
+    console.log("Database connection established");
+    
     // Check if record exists
+    const checkQuery = `SELECT * FROM T_EmpReq WHERE UserId = @USRID AND Date = @PunchDate`;
+    console.log("Checking existing record with query:", checkQuery);
     
     const checkResult = await pool
-    .request()
-    .input("UserID", sql.VarChar, USRID)
-    .input("USRID", sql.VarChar, USRID)
-    .input("Date", sql.VarChar, PunchDate)
-    .query(`SELECT * FROM T_EmpReq WHERE UserID = @UserID AND Date = @Date`);
-  
+      .request()
+      .input("USRID", sql.VarChar, USRID)
+      .input("PunchDate", sql.VarChar, PunchDate)
+      .query(checkQuery);
+    
+    console.log("Check result:", checkResult.recordset.length > 0 ? "Record exists" : "No record found");
 
     if (checkResult.recordset.length > 0) {
-     // Update existing record
-      await pool
+      // Update existing record
+      const updateQuery = `
+        UPDATE T_EmpReq 
+        SET InTime = @InTime,           -- Column: InTime (datetime)
+            OutTime = @OutTime,         -- Column: OutTime (datetime)
+            EmpReason = @Reason,        -- Column: EmpReason (varchar)
+            Status = @Status,           -- Column: Status (varchar)
+            EmpReqShow = @EmpReqShow,   -- Column: EmpReqShow (varchar)
+            ManagerApproval = @ManagerApproval, -- Column: ManagerApproval (varchar)
+            DEPARTMENT = @DEPARTMENT,    -- Column: DEPARTMENT (varchar)
+            EmpDate = @EmpDate          -- Column: EmpDate (datetime)
+        WHERE UserId = @USRID AND Date = @PunchDate
+      `;
+      console.log("Updating record with query:", updateQuery);
+      
+      const updateResult = await pool
         .request()
-        .input("UserID", sql.VarChar, USRID)
+        .input("USRID", sql.VarChar, USRID)
         .input("PunchDate", sql.VarChar, PunchDate)
-        .input("InTime", sql.VarChar, InTime || null)
-        .input("OutTime", sql.VarChar, OutTime || null)
-        .input("Status", sql.VarChar, Status)
-        .input("Reason", sql.VarChar, Reason)
-        .input("UpdatedDate", sql.DateTime, new Date()).query(`
-                UPDATE T_EmpReq 
-                SET InTime = @InTime, 
-                    OutTime = @OutTime, 
-                    Status = @Status, 
-                    Reason = @Reason,
-                    UpdatedDate = @UpdatedDate
-                WHERE USRID = @USRID AND SRVDT = @PunchDate
-              `);
-      console.log("Updated existing attendance record");
+        .input("InTime", sql.DateTime, InTime)
+        .input("OutTime", sql.DateTime, OutTime)
+        .input("Reason", sql.VarChar, Reason || null)
+        .input("Status", sql.VarChar, Status || null)
+        .input("EmpReqShow", sql.VarChar, EmpReqShow || null)
+        .input("ManagerApproval", sql.VarChar, ManagerApproval || null)
+        .input("DEPARTMENT", sql.VarChar, DEPARTMENT || null)
+        .input("EmpDate", sql.DateTime, EmpDate || new Date())
+        .query(updateQuery);
+      
+      console.log("Update result:", updateResult.rowsAffected[0] > 0 ? "Success" : "No rows updated");
     } else {
       // Insert new record
-      await pool
+      const insertQuery = `
+        INSERT INTO T_EmpReq (
+          UserId,        -- Column: UserId (varchar)
+          Date,          -- Column: Date (varchar)
+          InTime,        -- Column: InTime (datetime)
+          OutTime,       -- Column: OutTime (datetime)
+          EmpReason,     -- Column: EmpReason (varchar)
+          Status,        -- Column: Status (varchar)
+          EmpReqShow,    -- Column: EmpReqShow (varchar)
+          ManagerApproval, -- Column: ManagerApproval (varchar)
+          DEPARTMENT,    -- Column: DEPARTMENT (varchar)
+          EmpDate        -- Column: EmpDate (datetime)
+        )
+        VALUES (
+          @USRID,
+          @PunchDate,
+          @InTime,
+          @OutTime,
+          @Reason,
+          @Status,
+          @EmpReqShow,
+          @ManagerApproval,
+          @DEPARTMENT,
+          @EmpDate
+        )
+      `;
+      console.log("Inserting new record with query:", insertQuery);
+      
+      const insertResult = await pool
         .request()
-       
-        
-        .input("InTime", sql.VarChar, InTime || null)
-        .input("OutTime", sql.VarChar, OutTime || null)
-        .input("Status", sql.VarChar, Status)
-        .input("Reason", sql.VarChar, Reason|| null)
-        .input("CreatedDate", sql.DateTime, new Date())
-        .input("IsApproved", sql.Bit, 0)
-        .input("ApprovalRequested", sql.Bit, 0).query(`
-                INSERT INTO T_EmpReq (UserID)
-                VALUES (@USRID)
-              `);
-      console.log("Created new attendance record");
+        .input("USRID", sql.VarChar, USRID)
+        .input("PunchDate", sql.VarChar, PunchDate)
+        .input("InTime", sql.DateTime, InTime)
+        .input("OutTime", sql.DateTime, OutTime)
+        .input("Reason", sql.VarChar, Reason || null)
+        .input("Status", sql.VarChar, Status || null)
+        .input("EmpReqShow", sql.VarChar, EmpReqShow || null)
+        .input("ManagerApproval", sql.VarChar, ManagerApproval || null)
+        .input("DEPARTMENT", sql.VarChar, DEPARTMENT || null)
+        .input("EmpDate", sql.DateTime, EmpDate || new Date())
+        .query(insertQuery);
+      
+      console.log("Insert result:", insertResult.rowsAffected[0] > 0 ? "Success" : "No rows inserted");
     }
 
     // Success response
     console.log("Attendance data processed successfully");
     res.status(200).json({
       message: "Attendance saved successfully",
-      receivedData: { USRID, PunchDate, InTime, OutTime, Status, Reason },
+      receivedData: { 
+        USRID, 
+        PunchDate, 
+        InTime, 
+        OutTime, 
+        Status, 
+        Reason,
+        EmpReqShow,
+        ManagerApproval,
+        DEPARTMENT,
+        EmpDate
+      },
     });
   } catch (error) {
     console.error("Error saving attendance:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      state: error.state,
+      procedure: error.procedure,
+      lineNumber: error.lineNumber
+    });
+    res.status(500).json({ 
+      error: error.message,
+      details: {
+        code: error.code,
+        state: error.state,
+        procedure: error.procedure,
+        lineNumber: error.lineNumber
+      }
+    });
   }
 });
+
 
 // Request approval route
 app.post("/api/request-approval", async (req, res) => {
