@@ -17,6 +17,10 @@ const Attendance = () => {
   const [isFiltered, setIsFiltered] = useState(false);
   const [statusInputs, setStatusInputs] = useState({});
   const [reasonInputs, setReasonInputs] = useState({});
+  const [savedRecords, setSavedRecords] = useState(() => {
+    const saved = localStorage.getItem("savedAttendanceRecords");
+    return saved ? JSON.parse(saved) : {};
+  });
 
   // Time input states
   const [timeInputs, setTimeInputs] = useState({});
@@ -182,6 +186,25 @@ const Attendance = () => {
       );
       console.log("Save response:", response.data);
       alert("Attendance saved successfully!");
+
+      // Create a unique key for this record that will persist
+      const recordKey = `${record.USRID}_${record.PunchDate}`;
+
+      // Update savedRecords with the unique key
+      const updatedSavedRecords = {
+        ...savedRecords,
+        [recordKey]: true,
+      };
+
+      // Update state
+      setSavedRecords(updatedSavedRecords);
+
+      // Store in localStorage for persistence
+      localStorage.setItem(
+        "savedAttendanceRecords",
+        JSON.stringify(updatedSavedRecords)
+      );
+
       fetchAttendanceData(); // Refresh data
     } catch (error) {
       console.error(
@@ -477,7 +500,27 @@ const Attendance = () => {
                     : "Regularize Attendance"}
                 </td>
                 <td>
-                  <button onClick={() => HandleSave(index)} title="Save">
+                  <button
+                    onClick={() => HandleSave(index)}
+                    title="Save"
+                    disabled={
+                      savedRecords[
+                        `${filteredData[index].USRID}_${filteredData[index].PunchDate}`
+                      ]
+                    }
+                    style={{
+                      opacity: savedRecords[
+                        `${filteredData[index].USRID}_${filteredData[index].PunchDate}`
+                      ]
+                        ? 0.5
+                        : 1,
+                      cursor: savedRecords[
+                        `${filteredData[index].USRID}_${filteredData[index].PunchDate}`
+                      ]
+                        ? "not-allowed"
+                        : "pointer",
+                    }}
+                  >
                     💾
                   </button>
                   <button
