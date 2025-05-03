@@ -2,11 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./App.css"; // Import custom CSS
 
-
-
 // makeing the dynaic backend address
 const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000`;
-
 
 // Add console log to check environment variable
 console.log("API_BASE_URL:", API_BASE_URL);
@@ -42,6 +39,16 @@ const Attendance = () => {
     }
   }, [selectedEmployee, attendanceData]);
 
+  // Function to check if a record has mispunch (missing or invalid inTime or outTime)
+  const isMispunch = (record) => {
+    // Check for null, empty string, or placeholder values
+    const missingInTime =
+      !record.InTime || record.InTime === "" || record.InTime === "--";
+    const missingOutTime =
+      !record.OutTime || record.OutTime === "" || record.OutTime === "--";
+
+    return missingInTime || missingOutTime;
+  };
   const fetchAttendanceData = async () => {
     try {
       console.log("Fetching from:", API_BASE_URL); // Debug log
@@ -109,30 +116,29 @@ const Attendance = () => {
   };
   function getCurrentSQLDateTime() {
     const now = new Date();
-  
+
     const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-  
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-  
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
   }
-  
+
   const sqlDateTime = getCurrentSQLDateTime();
-  
-  
 
   const formatDateTime = (date, time) => {
     if (!time) return null;
     // Ensure time is in HH:mm:ss format
-    const timeParts = time.split(':');
-    const formattedTime = timeParts.length === 2 
-      ? `${time}:00`  // Add seconds if missing
-      : time;
+    const timeParts = time.split(":");
+    const formattedTime =
+      timeParts.length === 2
+        ? `${time}:00` // Add seconds if missing
+        : time;
     // Format to match SQL datetime: 'YYYY-MM-DD HH:mm:ss.000'
     return `${date} ${formattedTime}.000`;
   };
@@ -144,11 +150,14 @@ const Attendance = () => {
     const reasonInput = reasonInputs[index] || "";
     const DEPARTMENT = record.DEPARTMENT;
     const EmpDate = sqlDateTime;
-    
+
     // Format the datetime values
     const formattedInTime = formatDateTime(record.PunchDate, timeInput.inTime);
-    const formattedOutTime = formatDateTime(record.PunchDate, timeInput.outTime);
-    
+    const formattedOutTime = formatDateTime(
+      record.PunchDate,
+      timeInput.outTime
+    );
+
     const saveData = {
       USRID: record.USRID,
       PunchDate: record.PunchDate,
@@ -156,24 +165,34 @@ const Attendance = () => {
       OutTime: formattedOutTime,
       Status: statusInput,
       Reason: reasonInput,
-      EmpReqShow: 'No',
-      ManagerApproval: 'Pending',
+      EmpReqShow: "No",
+      ManagerApproval: "Pending",
       DEPARTMENT: DEPARTMENT,
       EmpDate: EmpDate,
     };
-    
+
     // Added: Show data in console log and alert before sending
     console.log("Data to be sent:", saveData);
     alert(`Data to be sent: ${JSON.stringify(saveData, null, 2)}`);
-    
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/save-attendance`, saveData);
+      const response = await axios.post(
+        `${API_BASE_URL}/api/save-attendance`,
+        saveData
+      );
       console.log("Save response:", response.data);
       alert("Attendance saved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error saving attendance:", error.response?.data || error.message);
-      alert(`Error saving attendance: ${error.response?.data?.error || error.message}`);
+      console.error(
+        "Error saving attendance:",
+        error.response?.data || error.message
+      );
+      alert(
+        `Error saving attendance: ${
+          error.response?.data?.error || error.message
+        }`
+      );
     }
   };
 
@@ -193,13 +212,23 @@ const Attendance = () => {
     console.log("Requesting approval with data:", approvalData);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/request-approval`, approvalData);
+      const response = await axios.post(
+        `${API_BASE_URL}/api/request-approval`,
+        approvalData
+      );
       console.log("Approval request response:", response.data);
       alert("Approval requested successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error requesting approval:", error.response?.data || error.message);
-      alert(`Error requesting approval: ${error.response?.data?.error || error.message}`);
+      console.error(
+        "Error requesting approval:",
+        error.response?.data || error.message
+      );
+      alert(
+        `Error requesting approval: ${
+          error.response?.data?.error || error.message
+        }`
+      );
     }
   };
 
@@ -213,13 +242,23 @@ const Attendance = () => {
     console.log("Approving attendance with data:", approveData);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/approve-attendance`, approveData);
+      const response = await axios.post(
+        `${API_BASE_URL}/api/approve-attendance`,
+        approveData
+      );
       console.log("Approve response:", response.data);
       alert("Attendance approved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error approving attendance:", error.response?.data || error.message);
-      alert(`Error approving attendance: ${error.response?.data?.error || error.message}`);
+      console.error(
+        "Error approving attendance:",
+        error.response?.data || error.message
+      );
+      alert(
+        `Error approving attendance: ${
+          error.response?.data?.error || error.message
+        }`
+      );
     }
   };
 
@@ -232,34 +271,47 @@ const Attendance = () => {
       alert("All attendance records approved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
-      console.error("Error approving all attendance:", error.response?.data || error.message);
-      alert(`Error approving all attendance: ${error.response?.data?.error || error.message}`);
+      console.error(
+        "Error approving all attendance:",
+        error.response?.data || error.message
+      );
+      alert(
+        `Error approving all attendance: ${
+          error.response?.data?.error || error.message
+        }`
+      );
     }
   };
 
-  // Function to handle filter
+  // Function to handle filter - updated to include mispunch filter
   const handleFilter = () => {
     let filtered = [...attendanceData];
 
+    // Filter by employee if selected
     if (selectedEmployee !== "-1") {
       filtered = filtered.filter((record) => record.USRID === selectedEmployee);
+    }
+
+    // Filter by mispunches if checkbox is checked
+    if (showMispunchesOnly) {
+      filtered = filtered.filter((record) => isMispunch(record));
     }
 
     setFilteredData(filtered);
     setIsFiltered(true);
   };
 
-  // Function to reset filters
   const handleReset = () => {
     setFilteredData(attendanceData);
     setSelectedEmployee("-1");
+    setShowMispunchesOnly(false);
     setIsFiltered(false);
   };
 
   // Function to calculate row background color based on status
   const getRowStyle = (record) => {
     if (!record.InTime || !record.OutTime)
-      return { backgroundColor: "#eb3434", color: "white" };
+      return { backgroundColor: "#b0b0b0", color: "white" };
     if (record.Status === "HALF DAY")
       return { backgroundColor: "#eb8934", color: "white" };
     if (record.Status === "REGULARIZED")
@@ -434,7 +486,7 @@ const Attendance = () => {
                   >
                     📧
                   </button>
-                  <button onClick={()=> HandleApprove(index)} title="Approve">
+                  <button onClick={() => HandleApprove(index)} title="Approve">
                     👍
                   </button>
                 </td>
@@ -448,7 +500,7 @@ const Attendance = () => {
               </td>
               <td>
                 <button
-                  onClick={()=>HandleApproveAll}
+                  onClick={() => HandleApproveAll}
                   title="Approve"
                   style={{ width: "100%" }}
                 >
