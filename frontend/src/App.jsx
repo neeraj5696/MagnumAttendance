@@ -137,15 +137,30 @@ const Attendance = () => {
 
   const formatDateTime = (date, time) => {
     if (!time) return null;
+  
     // Ensure time is in HH:mm:ss format
     const timeParts = time.split(":");
-    const formattedTime =
-      timeParts.length === 2
-        ? `${time}:00` // Add seconds if missing
-        : time;
-    // Format to match SQL datetime: 'YYYY-MM-DD HH:mm:ss.000'
-    return `${date} ${formattedTime}.000`;
+    const formattedTime = timeParts.length === 2 ? `${time}:00` : time;
+  
+    // Combine date and time into a Date object (UTC assumed)
+    const isoString = `${date}T${formattedTime}Z`; // Treat as UTC
+    const utcDate = new Date(isoString);
+  
+    // Add 5 hours and 30 minutes (IST offset)
+    const istOffsetMs = (5 * 60 + 30) * 60 * 1000;
+    const istDate = new Date(utcDate.getTime());
+  
+    // Format back to 'YYYY-MM-DD HH:mm:ss.000'
+    const year = istDate.getFullYear();
+    const month = String(istDate.getMonth() + 1).padStart(2, "0");
+    const day = String(istDate.getDate()).padStart(2, "0");
+    const hours = String(istDate.getHours()).padStart(2, "0");
+    const minutes = String(istDate.getMinutes()).padStart(2, "0");
+    const seconds = String(istDate.getSeconds()).padStart(2, "0");
+  
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.000`;
   };
+  
 
   const HandleSave = async (index) => {
     const record = filteredData[index];
@@ -174,6 +189,11 @@ const Attendance = () => {
       DEPARTMENT: DEPARTMENT,
       EmpDate: EmpDate,
     };
+
+    if (!timeInput.inTime || !timeInput.outTime) {
+      alert("Both In and Out times must be provided.");
+      return;
+    }
 
     // Added: Show data in console log and alert before sending
     console.log("Data to be sent:", saveData);

@@ -1,0 +1,106 @@
+// 1. Use localStorage to persist the saved records state
+// Initialize savedRecords state from localStorage if available
+const [savedRecords, setSavedRecords] = useState(() => {
+  const saved = localStorage.getItem('savedAttendanceRecords');
+  return saved ? JSON.parse(saved) : {};
+});
+
+// Modified HandleSave function
+const HandleSave = async (index) => {
+  const record = filteredData[index];
+  const timeInput = timeInputs[index] || {};
+  const statusInput = statusInputs[index] || record.Status;
+  const reasonInput = reasonInputs[index] || "";
+  const DEPARTMENT = record.DEPARTMENT;
+  const EmpDate = sqlDateTime;
+
+  // Format the datetime values
+  const formattedInTime = formatDateTime(record.PunchDate, timeInput.inTime);
+  const formattedOutTime = formatDateTime(
+    record.PunchDate,
+    timeInput.outTime
+  );
+
+  const saveData = {
+    USRID: record.USRID,
+    PunchDate: record.PunchDate,
+    InTime: formattedInTime,
+    OutTime: formattedOutTime,
+    Status: statusInput,
+    Reason: reasonInput,
+    EmpReqShow: "No",
+    ManagerApproval: "Pending",
+    DEPARTMENT: DEPARTMENT,
+    EmpDate: EmpDate,
+  };
+
+  // Added: Show data in console log and alert before sending
+  console.log("Data to be sent:", saveData);
+  alert(`Data to be sent: ${JSON.stringify(saveData, null, 2)}`);
+
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/save-attendance`,
+      saveData
+    );
+    console.log("Save response:", response.data);
+    alert("Attendance saved successfully!");
+    
+    // Create a unique key for this record that will persist
+    const recordKey = `${record.USRID}_${record.PunchDate}`;
+    
+    // Update savedRecords with the unique key
+    const updatedSavedRecords = {
+      ...savedRecords,
+      [recordKey]: true
+    };
+    
+    // Update state
+    setSavedRecords(updatedSavedRecords);
+    
+    // Store in localStorage for persistence
+    localStorage.setItem('savedAttendanceRecords', JSON.stringify(updatedSavedRecords));
+    
+    fetchAttendanceData(); // Refresh data
+  } catch (error) {
+    console.error(
+      "Error saving attendance:",
+      error.response?.data || error.message
+    );
+    alert(
+      `Error saving attendance: ${
+        error.response?.data?.error || error.message
+      }`
+    );
+  }
+};
+
+// Modified save button JSX - using the unique record key instead of index
+<button
+  onClick={() => HandleSave(index)}
+  title="Save"
+  disabled={savedRecords[`${filteredData[index].USRID}_${filteredData[index].PunchDate}`]}
+  style={{
+    opacity: savedRecords[`${filteredData[index].USRID}_${filteredData[index].PunchDate}`] ? 0.5 : 1,
+    cursor: savedRecords[`${filteredData[index].USRID}_${filteredData[index].PunchDate}`] ? "not-allowed" : "pointer",
+  }}
+>
+  💾
+</button>
+
+// If needed, you can also add a function to clear saved records (e.g., for testing)
+const clearSavedRecords = () => {
+  localStorage.removeItem('savedAttendanceRecords');
+  setSavedRecords({});
+};
+
+// Add a useEffect to update the savedRecords when data is refreshed
+useEffect(() => {
+  if (filteredData && filteredData.length > 0) {
+    // Check if any of the currently displayed records are in the saved state
+    const saved = localStorage.getItem('savedAttendanceRecords');
+    if (saved) {
+      setSavedRecords(JSON.parse(saved));
+    }
+  }
+}, [filteredData]);
