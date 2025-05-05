@@ -488,6 +488,7 @@ const Attendance = () => {
               <th colSpan="3"></th>
             </tr>
             <tr>
+            <th width="8%">Select</th>
               <th width="8%">Poornata ID</th>
               <th width="10%">Name</th>
               <th width="8%">Department</th>
@@ -503,7 +504,7 @@ const Attendance = () => {
               </th>
               <th width="5%">Hours</th>
               <th width="7%">Status</th>
-              <th width="18%">Remarks</th>
+              <th width="9%">Remarks</th>
               <th width="10%">Action</th>
             </tr>
           </thead>
@@ -511,6 +512,7 @@ const Attendance = () => {
             {filteredData.map((record, index) => (
               <tr key={index} style={getRowStyle(record)}>
                 <td>{record.Employee_ID}</td>
+                <td>{record.USRID}</td>
                 <td>{record.Employee_Name}</td>
                 <td>{record.DEPARTMENT}</td>
                 <td>{record.PunchDate}</td>
@@ -588,7 +590,7 @@ const Attendance = () => {
                       onChange={(e) =>
                         handleReasonChange(index, e.target.value)
                       }
-                      placeholder="Regulize Attendance"
+                      placeholder="Enter Reason"
                       style={{ width: "90%", padding: "4px" }}
                     />
                   )}
