@@ -43,6 +43,35 @@ const Attendance = () => {
     }
   }, [selectedEmployee, attendanceData]);
 
+  // Helper function to get time in HH:mm format or empty string
+  const getTimeValue = (timeStr) => {
+    if (!timeStr || timeStr === "--") return "";
+    // If timeStr is already in HH:mm:ss, return HH:mm
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr.substring(0, 5);
+    // If timeStr is in 'YYYY-MM-DD HH:mm:ss' format, extract time part
+    if (timeStr.includes(" ")) {
+      const parts = timeStr.split(" ");
+      if (parts[1] && /^\d{2}:\d{2}:\d{2}$/.test(parts[1]))
+        return parts[1].substring(0, 5);
+    }
+    return "";
+  };
+
+  // Only initialize timeInputs if empty or filteredData length changes
+  useEffect(() => {
+    if (Object.keys(timeInputs).length !== filteredData.length) {
+      const initialTimeInputs = {};
+      filteredData.forEach((record, index) => {
+        initialTimeInputs[index] = {
+          inTime: getTimeValue(record.InTime),
+          outTime: getTimeValue(record.OutTime),
+          hours: record.Actual_Working_Hours || "00:00",
+        };
+      });
+      setTimeInputs(initialTimeInputs);
+    }
+  }, [filteredData]);
+
   // Function to check if a record has mispunch (missing or invalid inTime or outTime)
   const isMispunch = (record) => {
     // Check for null, empty string, or placeholder values
@@ -68,30 +97,27 @@ const Attendance = () => {
     if (!inTime || !outTime) {
       return "00:00";
     }
-
     const inDate = new Date(`1970-01-01T${inTime}:00`);
     const outDate = new Date(`1970-01-01T${outTime}:00`);
     const diffInMilliseconds = outDate - inDate;
-
     if (diffInMilliseconds < 0) {
-      return "00:00"; // Handle cases where outTime is earlier than inTime
+      return "00:00";
     }
-
     const hours = Math.floor(diffInMilliseconds / 3600000);
     const minutes = Math.floor((diffInMilliseconds % 3600000) / 60000);
-
     const formattedHours = hours.toString().padStart(2, "0");
     const formattedMinutes = minutes.toString().padStart(2, "0");
-
     return `${formattedHours}:${formattedMinutes}`;
   };
 
   const handleTimeChange = (index, type, value) => {
     setTimeInputs((prev) => {
       const currentRow = prev[index] || {
-        inTime: "",
-        outTime: "",
-        hours: "00:00",
+        inTime:
+          filteredData[index]?.InTime?.split(" ")[1]?.substring(0, 5) || "",
+        outTime:
+          filteredData[index]?.OutTime?.split(" ")[1]?.substring(0, 5) || "",
+        hours: filteredData[index]?.Actual_Working_Hours || "00:00",
       };
       const updatedRow = {
         ...currentRow,
@@ -118,38 +144,48 @@ const Attendance = () => {
       [index]: value,
     }));
   };
+
+  // Add reason options
+
+  const handleReasonChange = (index, value) => {
+    setReasonInputs((prev) => ({
+      ...prev,
+      [index]: value,
+    }));
+  };
+
   function getCurrentSQLDateTime() {
     const now = new Date();
 
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
+    // Format current date as 'YYYY-MM-DD'
+    const currentDate = now.toISOString().split("T")[0]; // e.g. '2025-05-05'
 
+    // Format current time as 'HH:mm'
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+    const currentTime = `${hours}:${minutes}`; // e.g. '14:30'
 
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+    // Call your function
+    const formatted = formatDateTime(currentDate, currentTime);
+
+    return formatted// Output: '2025-05-05 20:00:00.000' (if IST)
   }
-
-  const sqlDateTime = getCurrentSQLDateTime();
 
   const formatDateTime = (date, time) => {
     if (!time) return null;
-  
+
     // Ensure time is in HH:mm:ss format
     const timeParts = time.split(":");
     const formattedTime = timeParts.length === 2 ? `${time}:00` : time;
-  
+
     // Combine date and time into a Date object (UTC assumed)
     const isoString = `${date}T${formattedTime}Z`; // Treat as UTC
     const utcDate = new Date(isoString);
-  
+
     // Add 5 hours and 30 minutes (IST offset)
     const istOffsetMs = (5 * 60 + 30) * 60 * 1000;
     const istDate = new Date(utcDate.getTime());
-  
+
     // Format back to 'YYYY-MM-DD HH:mm:ss.000'
     const year = istDate.getFullYear();
     const month = String(istDate.getMonth() + 1).padStart(2, "0");
@@ -157,10 +193,11 @@ const Attendance = () => {
     const hours = String(istDate.getHours()).padStart(2, "0");
     const minutes = String(istDate.getMinutes()).padStart(2, "0");
     const seconds = String(istDate.getSeconds()).padStart(2, "0");
-  
+
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.000`;
   };
-  
+
+  const sqlDateTime = getCurrentSQLDateTime();
 
   const HandleSave = async (index) => {
     const record = filteredData[index];
@@ -483,7 +520,12 @@ const Attendance = () => {
                 <td className="settime">
                   <input
                     type="time"
-                    value={timeInputs[index]?.inTime || ""}
+                    value={
+                      timeInputs[index]?.inTime !== undefined &&
+                      timeInputs[index]?.inTime !== ""
+                        ? timeInputs[index].inTime
+                        : getTimeValue(record.InTime)
+                    }
                     onChange={(e) =>
                       handleTimeChange(index, "inTime", e.target.value)
                     }
@@ -492,13 +534,35 @@ const Attendance = () => {
                 <td className="settime">
                   <input
                     type="time"
-                    value={timeInputs[index]?.outTime || ""}
+                    value={
+                      timeInputs[index]?.outTime !== undefined &&
+                      timeInputs[index]?.outTime !== ""
+                        ? timeInputs[index].outTime
+                        : getTimeValue(record.OutTime)
+                    }
                     onChange={(e) =>
                       handleTimeChange(index, "outTime", e.target.value)
                     }
                   />
                 </td>
-                <td>{timeInputs[index]?.hours || "00:00"}</td>
+                <td>
+                  {console.log(
+                    "inTime:",
+                    timeInputs[index]?.inTime,
+                    "outTime:",
+                    timeInputs[index]?.outTime
+                  )}
+                  {calculateWorkingHours(
+                    timeInputs[index]?.inTime !== undefined &&
+                      timeInputs[index]?.inTime !== ""
+                      ? timeInputs[index].inTime
+                      : getTimeValue(record.InTime),
+                    timeInputs[index]?.outTime !== undefined &&
+                      timeInputs[index]?.outTime !== ""
+                      ? timeInputs[index].outTime
+                      : getTimeValue(record.OutTime)
+                  )}
+                </td>
                 <td>
                   <select
                     value={statusInputs[index] || record.Status}
@@ -515,9 +579,19 @@ const Attendance = () => {
                   </select>
                 </td>
                 <td>
-                  {record.Status === "PRESENT"
-                    ? "No Action Needed"
-                    : "Regularize Attendance"}
+                  {record.Status === "PRESENT" ? (
+                    "No Action Needed"
+                  ) : (
+                    <input
+                      type="text"
+                      value={reasonInputs[index] || ""}
+                      onChange={(e) =>
+                        handleReasonChange(index, e.target.value)
+                      }
+                      placeholder="Regulize Attendance"
+                      style={{ width: "90%", padding: "4px" }}
+                    />
+                  )}
                 </td>
                 <td>
                   <button
