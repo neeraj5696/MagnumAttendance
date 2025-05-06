@@ -75,7 +75,7 @@ HAVING
         WHEN CONVERT(TIME, FLP.InTime) > '10:00:00' THEN 'HALF DAY'
         WHEN CONVERT(TIME, FLP.InTime) > '09:35:00' AND CONVERT(TIME, FLP.InTime) <= '10:00:00' THEN 'PRESENT with Late Count'
         ELSE 'PRESENT'
-    END NOT IN ('PRESENT', 'PRESENT with Late Count')
+    END NOT IN ('')
 ORDER BY FLP.USRID, FLP.PunchDate;
 
 

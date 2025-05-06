@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./App.css"; // Import custom CSS
+import {
+  format,
+  parseISO,
+  addMonths,
+  isBefore,
+  isAfter,
+  isEqual,
+} from "date-fns";
 
 // makeing the dynaic backend address
 const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000`;
@@ -21,27 +29,29 @@ const Attendance = () => {
     const saved = localStorage.getItem("savedAttendanceRecords");
     return saved ? JSON.parse(saved) : {};
   });
+  const [monthRanges, setMonthRanges] = useState([]);
 
   // Time input states
   const [timeInputs, setTimeInputs] = useState({});
 
-  useEffect(() => {
-    fetchAttendanceData();
-  }, []);
-
   // Add new useEffect to handle filtering when selectedEmployee changes
   useEffect(() => {
+    let filtered = [...attendanceData];
+  
     if (selectedEmployee !== "-1") {
-      const filtered = attendanceData.filter(
+      filtered = attendanceData.filter(
         (record) => record.USRID === selectedEmployee
       );
-      setFilteredData(filtered);
-      setIsFiltered(true);
-    } else {
-      setFilteredData(attendanceData);
-      setIsFiltered(false);
     }
-  }, [selectedEmployee, attendanceData]);
+  
+    if (showMispunchesOnly) {
+      filtered = filtered.filter((record) => isMispunch(record));
+    }
+  
+    setFilteredData(filtered);
+    setIsFiltered(selectedEmployee !== "-1" || showMispunchesOnly);
+  }, [selectedEmployee, showMispunchesOnly, attendanceData]);
+  
 
   // Helper function to get time in HH:mm format or empty string
   const getTimeValue = (timeStr) => {
@@ -82,16 +92,95 @@ const Attendance = () => {
 
     return missingInTime || missingOutTime;
   };
+
+  // fetching the data form api
   const fetchAttendanceData = async () => {
     try {
       console.log("Fetching from:", API_BASE_URL); // Debug log
       const response = await axios.get(`${API_BASE_URL}/api/test-db`);
       setAttendanceData(response.data);
       setFilteredData(response.data);
+      console.log(response.data);
     } catch (error) {
       console.error("Error fetching attendance data:", error);
     }
   };
+/// side efect of fetchattendancedata
+  useEffect(() => {
+    fetchAttendanceData();
+  }, []);
+
+  // Build salary periods when data is fetched
+  useEffect(() => {
+    if (!attendanceData || attendanceData.length === 0) return;
+
+    const punchDates = attendanceData
+      .map((entry) => parseISO(entry.PunchDate))
+      .filter((date) => !isNaN(date));
+
+    if (punchDates.length === 0) return;
+
+    const minDate = format(new Date(Math.min(...punchDates)), "yyyy-MM-dd");
+    const maxDate = format(new Date(Math.max(...punchDates)), "yyyy-MM-dd");
+
+    const ranges = generateSalaryPeriods(minDate, maxDate);
+    setMonthRanges(ranges);
+
+    if (ranges.length > 0) {
+      setSelectedMonth(ranges[0].value);
+    }
+  }, [attendanceData]);
+
+  // Filter data based on selected month period
+  useEffect(() => {
+    if (!selectedMonth || monthRanges.length === 0) return;
+
+    const selectedPeriod = monthRanges.find(
+      (period) => period.value === selectedMonth
+    );
+
+    if (!selectedPeriod) return;
+
+    const { startDate, endDate } = selectedPeriod;
+
+    const filtered = attendanceData.filter((entry) => {
+      const punchDate = parseISO(entry.PunchDate);
+      return (
+        (isEqual(punchDate, startDate) || isAfter(punchDate, startDate)) &&
+        (isEqual(punchDate, endDate) || isBefore(punchDate, endDate))
+      );
+    });
+
+    setFilteredData(filtered);
+  }, [selectedMonth, monthRanges, attendanceData]);
+
+  function generateSalaryPeriods(minDateStr, maxDateStr) {
+    const periods = [];
+    let current = parseISO(minDateStr);
+    current.setDate(17);
+    if (parseISO(minDateStr).getDate() > 17) {
+      current = addMonths(current, 1);
+    }
+
+    const maxDate = parseISO(maxDateStr);
+
+    while (isBefore(current, addMonths(maxDate, 1))) {
+      const start = new Date(current);
+      const end = addMonths(start, 1);
+      end.setDate(16);
+
+      periods.push({
+        label: `${format(start, "MMMM d")} - ${format(end, "MMMM d")}`,
+        value: format(start, "yyyy-MM-dd"),
+        startDate: start,
+        endDate: end,
+      });
+
+      current = addMonths(current, 1);
+    }
+
+    return periods;
+  }
 
   const calculateWorkingHours = (inTime, outTime) => {
     if (!inTime || !outTime) {
@@ -168,7 +257,7 @@ const Attendance = () => {
     // Call your function
     const formatted = formatDateTime(currentDate, currentTime);
 
-    return formatted// Output: '2025-05-05 20:00:00.000' (if IST)
+    return formatted; // Output: '2025-05-05 20:00:00.000' (if IST)
   }
 
   const formatDateTime = (date, time) => {
@@ -441,7 +530,7 @@ const Attendance = () => {
               setSelectedEmployee(e.target.value);
             }}
           >
-            <option value="-1">Select</option>
+            <option value="-1">All Employees</option>
             {uniqueEmployees.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.name}
@@ -451,14 +540,16 @@ const Attendance = () => {
         </div>
         <div className="column">
           Month:
-          <select
+          {/* <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
           >
-            <option value="Jan-25">Jan-25</option>
-            <option value="Feb-25">Feb-25</option>
-            <option value="Mar-25">Mar-25</option>
-          </select>
+            {monthRanges.map((range) => (
+              <option key={range.value} value={range.value}>
+                {range.label}
+              </option>
+            ))}
+          </select> */}
         </div>
         <div className="column">
           <input
@@ -488,7 +579,7 @@ const Attendance = () => {
               <th colSpan="3"></th>
             </tr>
             <tr>
-            <th width="8%">Select</th>
+              <th width="8%">Select</th>
               <th width="8%">Poornata ID</th>
               <th width="10%">Name</th>
               <th width="8%">Department</th>
@@ -548,12 +639,12 @@ const Attendance = () => {
                   />
                 </td>
                 <td>
-                  {console.log(
+                  {/* {console.log(
                     "inTime:",
                     timeInputs[index]?.inTime,
                     "outTime:",
                     timeInputs[index]?.outTime
-                  )}
+                  )} */}
                   {calculateWorkingHours(
                     timeInputs[index]?.inTime !== undefined &&
                       timeInputs[index]?.inTime !== ""
@@ -600,32 +691,50 @@ const Attendance = () => {
                     onClick={() => HandleSave(index)}
                     title="Save"
                     disabled={
-                      savedRecords[
-                        `${filteredData[index].USRID}_${filteredData[index].PunchDate}`
-                      ]
+                      record.Status === "PRESENT" ||
+                      savedRecords[`${record.USRID}_${record.PunchDate}`]
                     }
                     style={{
-                      opacity: savedRecords[
-                        `${filteredData[index].USRID}_${filteredData[index].PunchDate}`
-                      ]
-                        ? 0.5
-                        : 1,
-                      cursor: savedRecords[
-                        `${filteredData[index].USRID}_${filteredData[index].PunchDate}`
-                      ]
-                        ? "not-allowed"
-                        : "pointer",
+                      opacity:
+                        record.Status === "PRESENT" ||
+                        savedRecords[`${record.USRID}_${record.PunchDate}`]
+                          ? 0.5
+                          : 1,
+                      cursor:
+                        record.Status === "PRESENT" ||
+                        savedRecords[`${record.USRID}_${record.PunchDate}`]
+                          ? "not-allowed"
+                          : "pointer",
                     }}
                   >
                     💾
                   </button>
+
                   <button
                     onClick={() => handleRequestApproval(index)}
                     title="Request Approval"
+                    disabled={record.Status === "PRESENT"}
+                    style={{
+                      marginLeft: "5px",
+                      opacity: record.Status === "PRESENT" ? 0.5 : 1,
+                      cursor:
+                        record.Status === "PRESENT" ? "not-allowed" : "pointer",
+                    }}
                   >
                     📧
                   </button>
-                  <button onClick={() => HandleApprove(index)} title="Approve">
+
+                  <button
+                    onClick={() => HandleApprove(index)}
+                    title="Approve"
+                    disabled={record.Status === "PRESENT"}
+                    style={{
+                      marginLeft: "5px",
+                      opacity: record.Status === "PRESENT" ? 0.5 : 1,
+                      cursor:
+                        record.Status === "PRESENT" ? "not-allowed" : "pointer",
+                    }}
+                  >
                     👍
                   </button>
                 </td>
