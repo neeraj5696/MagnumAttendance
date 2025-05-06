@@ -30,6 +30,10 @@ const Attendance = () => {
     return saved ? JSON.parse(saved) : {};
   });
   const [monthRanges, setMonthRanges] = useState([]);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   // Time input states
   const [timeInputs, setTimeInputs] = useState({});
@@ -37,21 +41,35 @@ const Attendance = () => {
   // Add new useEffect to handle filtering when selectedEmployee changes
   useEffect(() => {
     let filtered = [...attendanceData];
-  
+
     if (selectedEmployee !== "-1") {
       filtered = attendanceData.filter(
         (record) => record.USRID === selectedEmployee
       );
     }
-  
+
     if (showMispunchesOnly) {
       filtered = filtered.filter((record) => isMispunch(record));
     }
-  
+
     setFilteredData(filtered);
     setIsFiltered(selectedEmployee !== "-1" || showMispunchesOnly);
   }, [selectedEmployee, showMispunchesOnly, attendanceData]);
-  
+
+  // Add new useEffect to handle filtering when user changes
+  useEffect(() => {
+    if (!user) return;
+    
+    let filtered = [...attendanceData];
+    filtered = filtered.filter(record => record.USRID === user.id);
+    
+    if (showMispunchesOnly) {
+      filtered = filtered.filter((record) => isMispunch(record));
+    }
+
+    setFilteredData(filtered);
+    setIsFiltered(showMispunchesOnly);
+  }, [user, showMispunchesOnly, attendanceData]);
 
   // Helper function to get time in HH:mm format or empty string
   const getTimeValue = (timeStr) => {
@@ -105,7 +123,7 @@ const Attendance = () => {
       console.error("Error fetching attendance data:", error);
     }
   };
-/// side efect of fetchattendancedata
+  /// side efect of fetchattendancedata
   useEffect(() => {
     fetchAttendanceData();
   }, []);
@@ -303,17 +321,18 @@ const Attendance = () => {
       timeInput.outTime
     );
 
+    // Truncate or format values to fit SQL Server constraints
     const saveData = {
-      USRID: record.USRID,
-      PunchDate: record.PunchDate,
+      USRID: record.USRID.substring(0, 50), // Assuming UserId is varchar(50)
+      PunchDate: record.PunchDate.substring(0, 10), // Date format YYYY-MM-DD
       InTime: formattedInTime,
       OutTime: formattedOutTime,
-      Status: statusInput,
-      Reason: reasonInput,
+      Status: statusInput.substring(0, 50), // Assuming Status is varchar(50)
+      Reason: reasonInput.substring(0, 500), // Assuming Reason is varchar(500)
       EmpReqShow: "No",
       ManagerApproval: "Pending",
-      DEPARTMENT: DEPARTMENT,
-      EmpDate: EmpDate,
+      DEPARTMENT: DEPARTMENT ? DEPARTMENT.substring(0, 100) : null, // Assuming DEPARTMENT is varchar(100)
+      EmpDate: EmpDate
     };
 
     if (!timeInput.inTime || !timeInput.outTime) {
@@ -515,14 +534,40 @@ const Attendance = () => {
   // Get the unique employees list
   const uniqueEmployees = getUniqueEmployees();
 
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
+
   return (
     <div className="pageheaderr">
-      <section className="pageheader">View / Regularize Attendance</section>
+      <section className="pageheader">
+        View / Regularize Attendance
+        {user && (
+          <div style={{ fontSize: '1rem', marginTop: '10px' }}>
+            Welcome, {user.name} ({user.department})
+            <button 
+              onClick={handleLogout}
+              style={{
+                marginLeft: '20px',
+                padding: '5px 15px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        )}
+      </section>
 
       <div className="row">
-        <div className="column">Manager: Sameer Priyadarshi</div>
+        <div className="column">Employee Name </div>
         <div className="column">
-          Employee List:
+          Employee List:{user.name}
           <select
             value={selectedEmployee}
             onChange={(e) => {
@@ -540,7 +585,7 @@ const Attendance = () => {
         </div>
         <div className="column">
           Month:
-          {/* <select
+          <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
           >
@@ -549,7 +594,7 @@ const Attendance = () => {
                 {range.label}
               </option>
             ))}
-          </select> */}
+          </select>
         </div>
         <div className="column">
           <input
@@ -579,7 +624,7 @@ const Attendance = () => {
               <th colSpan="3"></th>
             </tr>
             <tr>
-              <th width="8%">Select</th>
+              <th width="4%">Select</th>
               <th width="8%">Poornata ID</th>
               <th width="10%">Name</th>
               <th width="8%">Department</th>
@@ -602,7 +647,13 @@ const Attendance = () => {
           <tbody>
             {filteredData.map((record, index) => (
               <tr key={index} style={getRowStyle(record)}>
-                <td>{record.Employee_ID}</td>
+                <td>
+                  <input
+                    type="checkbox"
+                   
+                    
+                  />
+                </td>
                 <td>{record.USRID}</td>
                 <td>{record.Employee_Name}</td>
                 <td>{record.DEPARTMENT}</td>

@@ -58,15 +58,15 @@ SELECT FLP.USRID,
        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
        CASE 
            WHEN FLP.InTime IS NULL THEN 'ABSENT'
-           WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) >= 4 * 3600 AND DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 7 * 3600 THEN 'HALF DAY'
-           WHEN CONVERT(TIME, FLP.InTime) > '10:00:00' THEN 'HALF DAY'
+           WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) <= 5 * 3600  THEN 'ABSENT'
+           
            WHEN CONVERT(TIME, FLP.InTime) > '09:35:00' AND CONVERT(TIME, FLP.InTime) <= '10:00:00' THEN 'PRESENT with Late Count'
            ELSE 'PRESENT'
        END AS Status
 FROM FirstLastPunch FLP
 LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
 LEFT JOIN BioStar2_ac.dbo.T_USR TU ON FLP.USRID = TU.USRID
-WHERE TU.NM IS NOT NULL
+WHERE TU.NM IS NOT NULL AND FLP.USRID NOT IN (1, 101)
 GROUP BY FLP.USRID, TU.NM, FLP.PunchDate, FLP.InTime, FLP.OutTime, TU.DEPARTMENT, TU.TITLE
 HAVING 
     CASE 
@@ -77,6 +77,7 @@ HAVING
         ELSE 'PRESENT'
     END NOT IN ('')
 ORDER BY FLP.USRID, FLP.PunchDate;
+
 
 
     `);

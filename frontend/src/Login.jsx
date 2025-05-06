@@ -2,27 +2,37 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000`;
+
 const Login = ({ setIsAuthenticated }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
-        username,
-        password,
-      });
+      // First fetch all attendance data to check if user exists
+      const response = await axios.get(`${API_BASE_URL}/api/test-db`);
+      const userExists = response.data.some(record => record.USRID === userId);
 
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+      if (userExists) {
+        // Get user details from the first matching record
+        const userRecord = response.data.find(record => record.USRID === userId);
+        // Store user info in localStorage
+        localStorage.setItem('user', JSON.stringify({
+          id: userRecord.USRID,
+          name: userRecord.Employee_Name,
+          department: userRecord.DEPARTMENT
+        }));
         setIsAuthenticated(true);
         navigate('/');
+      } else {
+        setError('Invalid User ID');
       }
     } catch (err) {
-      setError('Invalid username or password');
+      setError('Error validating user ID');
+      console.error('Login error:', err);
     }
   };
 
@@ -37,33 +47,18 @@ const Login = ({ setIsAuthenticated }) => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="username" className="sr-only">
-                Username
+              <label htmlFor="userId" className="sr-only">
+                User ID
               </label>
               <input
-                id="username"
-                name="username"
+                id="userId"
+                name="userId"
                 type="text"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your User ID"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
               />
             </div>
           </div>
