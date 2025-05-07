@@ -1,12 +1,35 @@
 /* Loading Message */
 .loading-message {
   text-align: center;
-  font-size: 18px;
-  color: #007bff;
-  font-weight: bold;
-  margin: 20px 0;
+  margin: 12px 0;
+  padding: 12px;
+  background-color: #edf2f7;
+  border-radius: 8px;
+  color: #3182ce;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  animation: pulse 1.5s infinite;
 }
 
+.loading-message i {
+  font-size: 1.2em;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.8;
+  }
+}
 
 /* General Styles */
 body {
@@ -18,219 +41,535 @@ body {
 
 /* Container and layout */
 .attendance-container {
-  max-width: 98vw;
-  margin: 24px auto;
-  padding: 24px 16px;
-  background: #f8faff;
-  border-radius: 28px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-  font-family: 'Segoe UI', Arial, sans-serif;
+  min-height: 100vh;
+  background-color: #f5f6fa;
+  padding: 20px;
+  padding-bottom: 60px;
 }
 
-/* Title */
-.title {
-  text-align: center;
-  font-size: 26px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 20px;
+/* Header Styles */
+.attendance-header {
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
 }
 
-.pageheader {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1a237e;
-  margin-bottom: 24px;
-  text-align: center;
-  letter-spacing: 1px;
-}
-
-.filter-row {
+.header-content {
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-  margin-bottom: 18px;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
 }
-.filter-col {
+
+.header-content h1 {
+  color: #2c3e50;
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 1rem;
 }
-.manager-name {
+
+.welcome-text {
+  color: #7f8c8d;
+}
+
+.user-name {
+  color: #2c3e50;
   font-weight: 600;
-  color: #1976d2;
 }
-.styled-select {
+
+.user-department {
+  color: #7f8c8d;
+}
+
+.logout-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
   padding: 6px 12px;
-  border-radius: 10px;
-  border: 1px solid #bdbdbd;
-  background: #fff;
-  font-size: 1rem;
-  transition: border 0.2s;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.3s;
+  font-size: 0.85rem;
 }
-.styled-select:focus {
-  border: 1.5px solid #1976d2;
-  outline: none;
+
+.logout-btn:hover {
+  background-color: #c0392b;
 }
+
+/* Filters Section */
+.filters-section {
+  background-color: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 12px;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.filter-item {
+  flex: 1;
+  min-width: 180px;
+}
+
+.filter-item label {
+  display: block;
+  margin-bottom: 8px;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.filter-select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 0.85rem;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 1rem;
-}
-.filter-btn, .reset-btn {
-  padding: 6px 16px;
-  border-radius: 8px;
-  border: none;
-  background: #1976d2;
-  color: #fff;
-  font-weight: 600;
-  margin-left: 8px;
+  gap: 8px;
   cursor: pointer;
-  transition: background 0.2s;
 }
-.reset-btn {
-  background: #bdbdbd;
-  color: #222;
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
 }
+
+.filter-btn, .reset-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.3s;
+}
+
+.filter-btn {
+  background-color: #3498db;
+  color: white;
+}
+
 .filter-btn:hover {
-  background: #0d47a1;
+  background-color: #2980b9;
 }
+
+.reset-btn {
+  background-color: #95a5a6;
+  color: white;
+}
+
 .reset-btn:hover {
-  background: #757575;
+  background-color: #7f8c8d;
 }
 
-/* Table styles */
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  border-radius: 22px;
-  background: #fff;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  scrollbar-width: auto; /* For Firefox */
+/* Table Container */
+.table-container {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: auto;
+  max-height: calc(100vh - 200px);
+  position: relative;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 60px;
 }
 
-/* Always show horizontal scrollbar for table-wrapper on overflow */
-.table-wrapper::-webkit-scrollbar {
-  height: 12px;
-  background: #e3e3e3;
-}
-.table-wrapper::-webkit-scrollbar-thumb {
-  background: #bdbdbd;
-  border-radius: 6px;
-}
-
-.table-wrapper {
-  -ms-overflow-style: auto; /* IE and Edge */
-  overflow-x: auto !important;
-}
-
+/* Table Styles */
 .attendance-table {
   width: 100%;
-  border-collapse: separate;
+  border-collapse: collapse;
   border-spacing: 0;
-  min-width: unset;
-  background: #fff;
-  border-radius: 20px;
-  overflow-x: auto;
-  table-layout: auto;
+  font-size: 0.85rem;
 }
-.attendance-table th, .attendance-table td {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 40px;
-  padding: 8px 4px;
-  border-radius: 12px;
-}
-.attendance-table th {
-  background: #1976d2;
-  color: #fff;
-  font-weight: 600;
+
+.attendance-table thead {
   position: sticky;
   top: 0;
   z-index: 2;
+  background-color: #f8f9fa;
 }
-.attendance-row {
-  transition: background 0.2s;
-}
-.attendance-row:hover {
-  background: #e3f2fd;
-}
-.row-checkbox {
-  accent-color: #1976d2;
-  width: 18px;
-  height: 18px;
-}
-.settimeE {
-  background: #e3f2fd;
-  color: #1976d2;
+
+.attendance-table th {
+  background-color: #f8f9fa;
+  padding: 6px 3px;
+  text-align: left;
   font-weight: 600;
+  color: #2c3e50;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+  font-size: 0.85rem;
 }
-.time-input {
-  width: 100%;
-  min-width: 40px;
-  max-width: 100%;
-  font-size: 1em;
-  padding: 4px 8px;
-  border-radius: 10px;
-  border: 1px solid #bdbdbd;
-  background: #f5faff;
-  transition: border 0.2s;
+
+.attendance-table td {
+  padding: 3px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: #4a5568;
+  vertical-align: middle;
+  font-weight: 500;
 }
-.time-input:focus {
-  border: 1.5px solid #1976d2;
-  outline: none;
-}
-.remark-input {
-  width: 100%;
-  min-width: 40px;
-  max-width: 100%;
-  font-size: 1em;
-  padding: 5px 10px;
-  border-radius: 10px;
-  border: 1px solid #bdbdbd;
-  background: #f5faff;
-  transition: border 0.2s;
-}
-.remark-input:focus {
-  border: 1.5px solid #1976d2;
-  outline: none;
-}
-.action-btn {
+
+/* Remove any existing table borders */
+.attendance-table,
+.attendance-table th,
+.attendance-table td {
   border: none;
-  background: #e3f2fd;
-  color: #1976d2;
-  font-size: 1.2rem;
-  border-radius: 10px;
-  margin: 0 2px;
-  padding: 6px 10px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
 }
-.action-btn:disabled {
-  background: #e0e0e0;
-  color: #bdbdbd;
+
+/* Add borders only where needed */
+.attendance-table th {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.attendance-table td {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Last row in tbody should not have bottom border */
+.attendance-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Column Widths - Optimized for 4K */
+.attendance-table th:nth-child(1), /* Select */
+.attendance-table td:nth-child(1) {
+  width: 28px;
+  min-width: 28px;
+}
+
+.attendance-table th:nth-child(2), /* Poornata ID */
+.attendance-table td:nth-child(2) {
+  width: 60px;
+  min-width: 60px;
+}
+
+.attendance-table th:nth-child(3), /* Name */
+.attendance-table td:nth-child(3) {
+  width: 90px;
+  min-width: 90px;
+}
+
+.attendance-table th:nth-child(4), /* Department */
+.attendance-table td:nth-child(4) {
+  width: 80px;
+  min-width: 80px;
+}
+
+.attendance-table th:nth-child(5), /* Date */
+.attendance-table td:nth-child(5) {
+  width: 60px;
+  min-width: 60px;
+}
+
+.attendance-table th:nth-child(6), /* IN */
+.attendance-table td:nth-child(6) {
+  width: 50px;
+  min-width: 50px;
+}
+
+.attendance-table th:nth-child(7), /* OUT */
+.attendance-table td:nth-child(7) {
+  width: 50px;
+  min-width: 50px;
+}
+
+.attendance-table th:nth-child(8), /* Hours */
+.attendance-table td:nth-child(8) {
+  width: 50px;
+  min-width: 50px;
+}
+
+.attendance-table th:nth-child(9), /* Regularized IN */
+.attendance-table td:nth-child(9) {
+  width: 70px;
+  min-width: 70px;
+}
+
+.attendance-table th:nth-child(10), /* Regularized OUT */
+.attendance-table td:nth-child(10) {
+  width: 70px;
+  min-width: 70px;
+}
+
+.attendance-table th:nth-child(11), /* Regularized Hours */
+.attendance-table td:nth-child(11) {
+  width: 55px;
+  min-width: 55px;
+}
+
+.attendance-table th:nth-child(12), /* Status */
+.attendance-table td:nth-child(12) {
+  width: 75px;
+  min-width: 75px;
+}
+
+.attendance-table th:nth-child(13), /* Remarks */
+.attendance-table td:nth-child(13) {
+  width: 120px;
+  min-width: 120px;
+}
+
+.attendance-table th:nth-child(14), /* Action */
+.attendance-table td:nth-child(14) {
+  width: 80px;
+  min-width: 80px;
+}
+
+/* Pagination Container */
+.pagination-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background-color: #fff;
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+}
+
+.pagination-button {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #4a5568;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  min-width: 90px;
+  justify-content: center;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background-color: #f7fafc;
+  border-color: #cbd5e0;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
-.save-btn:hover {
-  background: #43a047;
-  color: #fff;
+
+.pagination-info {
+  color: #718096;
+  font-size: 0.85rem;
+  min-width: 90px;
+  text-align: center;
 }
-.request-btn:hover {
-  background: #ffa000;
-  color: #fff;
+
+/* Status Colors - Professional Color Scheme */
+tr[style*="background-color: #2d3748"] { /* Absent */
+  background-color: #2d3748 !important;
+  color: white !important;
 }
-.approve-btn:hover {
-  background: #1976d2;
-  color: #fff;
+
+tr[style*="background-color: #dd6b20"] { /* Half Day */
+  background-color: #dd6b20 !important;
+  color: white !important;
 }
+
+tr[style*="background-color: #38a169"] { /* Present */
+  background-color: #38a169 !important;
+  color: white !important;
+}
+
+tr[style*="background-color: #4a5568"] { /* Mis Punch */
+  background-color: #4a5568 !important;
+  color: white !important;
+}
+
+/* Input fields in colored rows */
+tr[style*="background-color: #2d3748"] .time-input,
+tr[style*="background-color: #2d3748"] .status-select,
+tr[style*="background-color: #2d3748"] .reason-input {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #1a202c;
+  cursor: pointer !important;
+}
+
+tr[style*="background-color: #dd6b20"] .time-input,
+tr[style*="background-color: #dd6b20"] .status-select,
+tr[style*="background-color: #dd6b20"] .reason-input {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #1a202c;
+  cursor: pointer !important;
+}
+
+tr[style*="background-color: #38a169"] .time-input,
+tr[style*="background-color: #38a169"] .status-select,
+tr[style*="background-color: #38a169"] .reason-input {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #1a202c;
+  cursor: pointer !important;
+}
+
+tr[style*="background-color: #4a5568"] .time-input,
+tr[style*="background-color: #4a5568"] .status-select,
+tr[style*="background-color: #4a5568"] .reason-input {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #1a202c;
+  cursor: pointer !important;
+}
+
+/* Action buttons in colored rows */
+tr[style*="background-color: #2d3748"] .action-btn,
+tr[style*="background-color: #dd6b20"] .action-btn,
+tr[style*="background-color: #38a169"] .action-btn,
+tr[style*="background-color: #4a5568"] .action-btn {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1a202c;
+}
+
+tr[style*="background-color: #2d3748"] .action-btn:hover,
+tr[style*="background-color: #dd6b20"] .action-btn:hover,
+tr[style*="background-color: #38a169"] .action-btn:hover,
+tr[style*="background-color: #4a5568"] .action-btn:hover {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* Status colors with better contrast */
+.status-absent {
+  background-color: #2d3748 !important;
+  color: white !important;
+  font-size: 0.85rem;
+}
+
+.status-half-day {
+  background-color: #dd6b20 !important;
+  color: white !important;
+  font-size: 0.85rem;
+}
+
+.status-present {
+  background-color: #38a169 !important;
+  color: white !important;
+  font-size: 0.85rem;
+}
+
+.status-mispunch {
+  background-color: #4a5568 !important;
+  color: white !important;
+  font-size: 0.85rem;
+}
+
+/* Input Styles - More compact */
+.time-input, .status-select, .reason-input {
+  width: 100%;
+  padding: 2px 3px;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  background-color: #fff;
+  font-size: 0.85rem;
+  height: 24px;
+}
+
+/* Action Buttons - More compact */
+.action-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.action-btn {
+  padding: 2px;
+  min-width: 22px;
+  min-height: 22px;
+  font-size: 0.8rem;
+}
+
+/* Scrollbar Styles */
+.table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f7fafc;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* No Action Text */
 .no-action {
-  color: #757575;
+  color: #a0aec0;
   font-style: italic;
+  font-size: 0.85rem;
+  text-align: center;
+  display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filter-group {
+    flex-direction: column;
+  }
+  
+  .filter-item {
+    width: 100%;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .user-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 /* No Records */
@@ -374,6 +713,170 @@ body, .attendance-container, .attendance-table, .attendance-table th, .attendanc
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+/* Remarks Column Styles */
+.remarks-container {
+  position: relative;
+  width: 100%;
+}
+
+.reason-input {
+  width: 100%;
+  padding: 2px 3px;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  background-color: #fff;
+  font-size: 0.85rem;
+  min-height: 24px;
+  max-height: 24px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* Popup Editor Styles */
+.remarks-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1100;
+  width: 400px;
+  max-width: 90vw;
+}
+
+.remarks-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1090;
+}
+
+.remarks-popup textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  resize: vertical;
+  margin-bottom: 12px;
+}
+
+.remarks-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.remarks-popup-title {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 1rem;
+}
+
+.remarks-popup-close {
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 1.2rem;
+}
+
+.remarks-popup-close:hover {
+  color: #4a5568;
+}
+
+.remarks-popup-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.character-counter {
+  color: #718096;
+  font-size: 0.8rem;
+}
+
+.character-counter.warning {
+  color: #e53e3e;
+  font-weight: bold;
+}
+
+/* Remove "display: none" for popup styles */
+.remarks-popup,
+.remarks-popup-overlay,
+.remarks-popup-header,
+.remarks-popup-title,
+.remarks-popup-close,
+.remarks-popup-footer {
+  /* These elements should be visible when active */
+}
+
+/* Make table rows more compact */
+.attendance-table tbody tr {
+  height: 32px;
+}
+
+/* Adjust input fields to match row height */
+.time-input, .status-select {
+  height: 24px;
+  padding: 2px 3px;
+}
+
+/* Action buttons more compact */
+.action-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.action-btn {
+  padding: 2px;
+  min-width: 22px;
+  min-height: 22px;
+}
+
+/* Status Select Styles */
+.status-select {
+  width: 100%;
+  padding: 2px 3px;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.95);
+  font-size: 0.85rem;
+  color: #1a202c;
+  cursor: pointer;
+}
+
+/* Status-specific styles */
+tr[style*="background-color: #2d3748"] .status-select {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1a202c;
+}
+
+tr[style*="background-color: #dd6b20"] .status-select {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1a202c;
+}
+
+tr[style*="background-color: #38a169"] .status-select {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1a202c;
+}
+
+tr[style*="background-color: #4a5568"] .status-select {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1a202c;
 }
 
 

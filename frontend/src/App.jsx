@@ -34,9 +34,15 @@ const Attendance = () => {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   // Time input states
   const [timeInputs, setTimeInputs] = useState({});
+  const [expandedRemarks, setExpandedRemarks] = useState({});
+  const MAX_CHARS = 40;
+
+  // Add popupRemarks state
+  const [popupRemarks, setPopupRemarks] = useState({ show: false, index: null, value: '' });
 
   // Add new useEffect to handle filtering when selectedEmployee changes
   useEffect(() => {
@@ -114,20 +120,26 @@ const Attendance = () => {
   // fetching the data form api
   const fetchAttendanceData = async () => {
     try {
+      setIsLoading(true);
       console.log("Fetching from:", API_BASE_URL);
       const response = await axios.get(`${API_BASE_URL}/api/test-db`);
       // Filter data for logged-in user only
       const userData = response.data.filter(record => record.USRID === user.id);
       setAttendanceData(userData);
       setFilteredData(userData);
+      setIsLoading(false);
     } catch (error) {
       console.error("Error fetching attendance data:", error);
+      setIsLoading(false);
     }
   };
+
   /// side efect of fetchattendancedata
   useEffect(() => {
-    fetchAttendanceData();
-  }, []);
+    if (user) {
+      fetchAttendanceData();
+    }
+  }, [user]);
 
   // Build salary periods when data is fetched
   useEffect(() => {
@@ -256,9 +268,18 @@ const Attendance = () => {
   // Add reason options
 
   const handleReasonChange = (index, value) => {
-    setReasonInputs((prev) => ({
+    if (value.length <= MAX_CHARS) {
+      setReasonInputs((prev) => ({
+        ...prev,
+        [index]: value,
+      }));
+    }
+  };
+
+  const toggleExpand = (index) => {
+    setExpandedRemarks((prev) => ({
       ...prev,
-      [index]: value,
+      [index]: !prev[index],
     }));
   };
 
@@ -499,16 +520,20 @@ const Attendance = () => {
 
   // Function to calculate row background color based on status
   const getRowStyle = (record) => {
-    if (!record.InTime || !record.OutTime)
-      return { backgroundColor: "#b0b0b0", color: "white" };
-    if (record.Status === "HALF DAY")
-      return { backgroundColor: "#eb8934", color: "white" };
-    if (record.Status === "REGULARIZED")
-      return { backgroundColor: "#157d0a", color: "white" };
-    if (record.Status === "ABSENT")
-      return { backgroundColor: "#eb3434", color: "white" };
-    return {};
+    switch (record.Status) {
+      case "MIS PUNCH":
+        return { backgroundColor: "rgba(210, 236, 17, 0.8)" };  // Dark gray
+      case "HALF DAY":
+        return { backgroundColor: "rgba(255, 193, 7, 0.2)" };  // Orange
+      case "PRESENT":
+        return { backgroundColor: "rgba(40, 167, 69, 0.2)" };  // Green
+      case "ABSENT":
+        return { backgroundColor: "rgba(220, 53, 69, 0.2)" };    // Darker gray
+      default:
+        return {};
+    }
   };
+  
 
   // Get unique employees for dropdown
   const getUniqueEmployees = () => {
@@ -540,83 +565,133 @@ const Attendance = () => {
     window.location.href = '/login';
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(15);
+
+  // Add pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top of table when changing pages
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer) {
+      tableContainer.scrollTop = 0;
+    }
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredData]);
+
+  // Add popup-related functions
+  const handleRemarksClick = (index, currentValue) => {
+    setPopupRemarks({
+      show: true,
+      index,
+      value: currentValue || ''
+    });
+  };
+
+  const handlePopupClose = () => {
+    setPopupRemarks({ show: false, index: null, value: '' });
+  };
+
+  const handlePopupSave = () => {
+    if (popupRemarks.index !== null) {
+      handleReasonChange(popupRemarks.index, popupRemarks.value);
+    }
+    handlePopupClose();
+  };
+
   return (
-    <div className="pageheaderr">
-      <section className="pageheader">
-        View / Regularize Attendance
-        {user && (
-          <div style={{ fontSize: '1rem', marginTop: '10px' }}>
-            Welcome, {user.name} ({user.department})
-            <button 
-              onClick={handleLogout}
-              style={{
-                marginLeft: '20px',
-                padding: '5px 15px',
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer'
-              }}
-            >
-              Logout
+    <div className="attendance-container">
+      <header className="attendance-header">
+        <div className="header-content">
+          <h1>Attendance Management</h1>
+          <div className="user-section">
+            <div className="user-info">
+              <span className="welcome-text">Welcome,</span>
+              <span className="user-name">{user?.name}</span>
+              <span className="user-department">({user?.department})</span>
+            </div>
+            <button onClick={handleLogout} className="logout-btn">
+              <i className="fas fa-sign-out-alt"></i> Logout
             </button>
           </div>
-        )}
-      </section>
+        </div>
+      </header>
 
-      <div className="row">
-        <div className="column">Employee Name </div>
-        <div className="column">
-          Employee List:{user.name}
-          <select
-            value={selectedEmployee}
-            onChange={(e) => {
-              console.log("Selected employee value:", e.target.value);
-              setSelectedEmployee(e.target.value);
-            }}
-          >
-            <option value="-1">All Employees</option>
-            {uniqueEmployees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.name}
-              </option>
-            ))}
-          </select>
+      {isLoading && (
+        <div className="loading-message">
+          <i className="fas fa-spinner fa-spin"></i> Data is loading, please wait...
         </div>
-        <div className="column">
-          Month:
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-          >
-            {monthRanges.map((range) => (
-              <option key={range.value} value={range.value}>
-                {range.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="column">
-          <input
-            type="checkbox"
-            checked={showMispunchesOnly}
-            onChange={(e) => setShowMispunchesOnly(e.target.checked)}
-          />
-          Mispunches
-          <button className="filter-btn" onClick={handleFilter}>
-            Filter
-          </button>
-          {isFiltered && (
-            <button className="reset-btn" onClick={handleReset}>
-              Reset
+      )}
+
+      <div className="filters-section">
+        <div className="filter-group">
+          <div className="filter-item">
+            <label>Employee Name</label>
+            <div className="employee-name">{user?.name}</div>
+          </div>
+          <div className="filter-item">
+            <label>Attendance List</label>
+            <select
+              value={selectedEmployee}
+              onChange={(e) => setSelectedEmployee(e.target.value)}
+              className="filter-select"
+            >
+              <option value="-1">Select Employee</option>
+              {uniqueEmployees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-item">
+            <label>Month</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="filter-select"
+            >
+              {monthRanges.map((range) => (
+                <option key={range.value} value={range.value}>
+                  {range.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-item checkbox-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={showMispunchesOnly}
+                onChange={(e) => setShowMispunchesOnly(e.target.checked)}
+              />
+              <span>Show Mispunches Only</span>
+            </label>
+          </div>
+          <div className="filter-actions">
+            <button className="filter-btn" onClick={handleFilter}>
+              <i className="fas fa-filter"></i> Filter
             </button>
-          )}
+            {isFiltered && (
+              <button className="reset-btn" onClick={handleReset}>
+                <i className="fas fa-undo"></i> Reset
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <section className="content">
-        <table>
+      <div className="table-container">
+        <table className="attendance-table">
           <thead>
             <tr>
               <th colSpan="4"></th>
@@ -633,12 +708,8 @@ const Attendance = () => {
               <th width="5%">IN</th>
               <th width="5%">OUT</th>
               <th width="5%">Hours</th>
-              <th className="settimeE" width="6%">
-                IN
-              </th>
-              <th className="settimeE" width="6%">
-                OUT
-              </th>
+              <th className="settimeE" width="6%">IN</th>
+              <th className="settimeE" width="6%">OUT</th>
               <th width="5%">Hours</th>
               <th width="7%">Status</th>
               <th width="9%">Remarks</th>
@@ -646,21 +717,17 @@ const Attendance = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((record, index) => (
+            {currentItems.map((record, index) => (
               <tr key={index} style={getRowStyle(record)}>
                 <td>
-                  <input
-                    type="checkbox"
-                   
-                    
-                  />
+                  <input type="checkbox" className="row-checkbox" />
                 </td>
                 <td>{record.USRID}</td>
                 <td>{record.Employee_Name}</td>
                 <td>{record.DEPARTMENT}</td>
                 <td>{record.PunchDate}</td>
-                <td>{record.InTime || ""}</td>
-                <td>{record.OutTime || ""}</td>
+                <td>{record.InTime || "--"}</td>
+                <td>{record.OutTime || "--"}</td>
                 <td>{record.Actual_Working_Hours || "00:00"}</td>
                 <td className="settime">
                   <input
@@ -674,6 +741,7 @@ const Attendance = () => {
                     onChange={(e) =>
                       handleTimeChange(index, "inTime", e.target.value)
                     }
+                    className="time-input"
                   />
                 </td>
                 <td className="settime">
@@ -688,15 +756,10 @@ const Attendance = () => {
                     onChange={(e) =>
                       handleTimeChange(index, "outTime", e.target.value)
                     }
+                    className="time-input"
                   />
                 </td>
                 <td>
-                  {/* {console.log(
-                    "inTime:",
-                    timeInputs[index]?.inTime,
-                    "outTime:",
-                    timeInputs[index]?.outTime
-                  )} */}
                   {calculateWorkingHours(
                     timeInputs[index]?.inTime !== undefined &&
                       timeInputs[index]?.inTime !== ""
@@ -709,36 +772,34 @@ const Attendance = () => {
                   )}
                 </td>
                 <td>
-                  <select
-                    value={statusInputs[index] || record.Status}
-                    onChange={(e) => handleStatusChange(index, e.target.value)}
-                  >
-                    <option value={record.Status}>{record.Status}</option>
-                    {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
-                      .filter((status) => status !== record.Status)
-                      .map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                  </select>
+                <select>
+                      <option value={record.Status} selected>
+                        {record.Status}{" "}
+                      </option>
+                      {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
+                        .filter((status) => status !== record.Status)
+                        .map((status) => (
+                          <option key={status} value={status}>
+                            {status}{" "}
+                          </option>
+                        ))}
+                    </select>
                 </td>
                 <td>
                   {record.Status === "PRESENT" ? (
-                    "No Action Needed"
+                    <span className="no-action">No Action Needed</span>
                   ) : (
-                    <input
-                      type="text"
-                      value={reasonInputs[index] || ""}
-                      onChange={(e) =>
-                        handleReasonChange(index, e.target.value)
-                      }
-                      placeholder="Enter Reason"
-                      style={{ width: "90%", padding: "4px" }}
-                    />
+                    <div className="remarks-container">
+                      <div 
+                        className="reason-input"
+                        onClick={() => handleRemarksClick(index, reasonInputs[index])}
+                      >
+                        {reasonInputs[index] || "Click to add remarks"}
+                      </div>
+                    </div>
                   )}
                 </td>
-                <td>
+                <td className="action-buttons">
                   <button
                     onClick={() => HandleSave(index)}
                     title="Save"
@@ -746,48 +807,27 @@ const Attendance = () => {
                       record.Status === "PRESENT" ||
                       savedRecords[`${record.USRID}_${record.PunchDate}`]
                     }
-                    style={{
-                      opacity:
-                        record.Status === "PRESENT" ||
-                        savedRecords[`${record.USRID}_${record.PunchDate}`]
-                          ? 0.5
-                          : 1,
-                      cursor:
-                        record.Status === "PRESENT" ||
-                        savedRecords[`${record.USRID}_${record.PunchDate}`]
-                          ? "not-allowed"
-                          : "pointer",
-                    }}
+                    className="action-btn save-btn"
                   >
-                    💾
+                    <i className="fas fa-save"></i>
                   </button>
 
                   <button
                     onClick={() => handleRequestApproval(index)}
                     title="Request Approval"
                     disabled={record.Status === "PRESENT"}
-                    style={{
-                      marginLeft: "5px",
-                      opacity: record.Status === "PRESENT" ? 0.5 : 1,
-                      cursor:
-                        record.Status === "PRESENT" ? "not-allowed" : "pointer",
-                    }}
+                    className="action-btn approval-btn"
                   >
-                    📧
+                    <i className="fas fa-envelope"></i>
                   </button>
 
                   <button
                     onClick={() => HandleApprove(index)}
                     title="Approve"
                     disabled={record.Status === "PRESENT"}
-                    style={{
-                      marginLeft: "5px",
-                      opacity: record.Status === "PRESENT" ? 0.5 : 1,
-                      cursor:
-                        record.Status === "PRESENT" ? "not-allowed" : "pointer",
-                    }}
+                    className="action-btn approve-btn"
                   >
-                    👍
+                    <i className="fas fa-check"></i>
                   </button>
                 </td>
               </tr>
@@ -795,22 +835,79 @@ const Attendance = () => {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan="12" style={{ textAlign: "right" }}>
+              <td colSpan="12" className="approve-all-cell">
                 Approve All:
               </td>
               <td>
                 <button
-                  onClick={() => HandleApproveAll}
-                  title="Approve"
-                  style={{ width: "100%" }}
+                  onClick={HandleApproveAll}
+                  title="Approve All"
+                  className="approve-all-btn"
                 >
-                  👍
+                  <i className="fas fa-check-double"></i> Approve All
                 </button>
               </td>
             </tr>
           </tfoot>
         </table>
-      </section>
+      </div>
+
+      {filteredData.length > 0 && (
+        <div className="pagination-container">
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <i className="fas fa-chevron-left"></i> Previous
+          </button>
+          
+          <span className="pagination-info">
+            Page {currentPage} of {totalPages}
+          </span>
+          
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Next <i className="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      )}
+
+      {/* Add popup JSX */}
+      {popupRemarks.show && (
+        <>
+          <div className="remarks-popup-overlay" onClick={handlePopupClose} />
+          <div className="remarks-popup">
+            <div className="remarks-popup-header">
+              <div className="remarks-popup-title">Add Remarks</div>
+              <button className="remarks-popup-close" onClick={handlePopupClose}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <textarea
+              value={popupRemarks.value}
+              onChange={(e) => {
+                if (e.target.value.length <= MAX_CHARS) {
+                  setPopupRemarks(prev => ({ ...prev, value: e.target.value }));
+                }
+              }}
+              placeholder="Enter remarks..."
+              maxLength={MAX_CHARS}
+            />
+            <div className="remarks-popup-footer">
+              <div className={`character-counter ${popupRemarks.value.length >= MAX_CHARS ? 'warning' : ''}`}>
+                {popupRemarks.value.length}/{MAX_CHARS}
+              </div>
+              <button className="pagination-button" onClick={handlePopupSave}>
+                Save
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

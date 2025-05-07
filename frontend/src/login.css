@@ -1,119 +1,150 @@
 /* Base reset */
 body {
-    margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f3f4f6; /* Slightly lighter background */
-  }
-  
-  /* Centering container */
-  .login-container {
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    background-color: #f3f4f6;
-  }
-  
-  /* Card-style login box */
-  .login-box {
-    max-width: 400px;
-    width: 100%;
-    background-color: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.75rem;
-    padding: 2rem 2.5rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-  }
-  
-  /* Header */
-  .login-header {
-    text-align: center;
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #111827;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
-    padding-bottom: 0.75rem;
-  }
-  
-  /* Form layout */
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-  
-  /* Input group */
-  .input-group {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .input-group input {
-    padding: 0.75rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    font-size: 0.95rem;
-    color: #111827;
-    background-color: #fff;
-    transition: border 0.2s ease, box-shadow 0.2s ease;
-  }
-  
-  .input-group input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-    outline: none;
-  }
-  
-  /* Error message */
-  .error-message {
-    color: #dc2626;
-    font-size: 0.875rem;
-    text-align: center;
-  }
-  
-  /* Submit button */
-  button[type="submit"] {
-    padding: 0.75rem 1rem;
-    background-color: #4f46e5;
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.25s ease, transform 0.1s ease;
-  }
-  
-  button[type="submit"]:hover {
-    background-color: #4338ca;
-    transform: translateY(-1px);
-  }
-  /* Optional: Add a label (visible) above input if not already using one */
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f3f4f6; /* Slightly lighter background */
+}
+
+/* Centering container */
+.login-container {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: #f3f4f6;
+}
+
+/* Card-style login box */
+.login-box {
+  max-width: 400px;
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* Header */
+.login-header {
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+}
+
+/* Form layout */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Input group */
+.input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  color: #111827;
+  background-color: #fff;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-group input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  outline: none;
+}
+
+/* Error message */
+.error-message {
+  color: #dc2626;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Success message */
+.success-message {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #48bb78;
+  color: white;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.success-message i {
+  font-size: 1.2em;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Submit button */
+button[type="submit"] {
+  padding: 0.75rem 1rem;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.25s ease, transform 0.1s ease;
+}
+
+button[type="submit"]:hover {
+  background-color: #4338ca;
+  transform: translateY(-1px);
+}
+
+button[type="submit"]:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Optional: Add a label (visible) above input if not already using one */
 .input-group label {
-    font-size: 0.875rem;
-    color: #374151;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-  }
-  
-  /* Enhance input appearance specifically for userId */
-  #userId {
-    padding: 0.75rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    color: #111827;
-    background-color: #f9fafb;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    margin: 2px;
-  }
-  
-  #userId:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-    background-color: #ffffff;
-  }
-  
-  
+  font-size: 0.875rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+/* Enhance input appearance specifically for userId */
+#userId {
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: #111827;
+  background-color: #f9fafb;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  margin: 2px;
+}
+
+#userId:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  background-color: #ffffff;
+}
+

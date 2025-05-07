@@ -21,14 +21,25 @@ app.get("/api/test-db", async (req, res) => {
     const pool = await sql.connect();
     console.log("✅ Database connected successfully on Vercel!"); // ✅ Logs in the console instead
     const result = await pool.request().query(`
-     WITH Punches AS (
+    
+  WITH Punches AS (
     SELECT USRID, 
-           FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,  -- Only Date
-           FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,    -- Only Time
+           FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
+           FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
            DEVUID
     FROM BioStar2_ac.dbo.T_LG202502
     WHERE DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
+    
+    UNION ALL
+
+    SELECT USRID, 
+           FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
+           FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
+           DEVUID
+    FROM BioStar2_ac.dbo.T_LG202403
+    WHERE DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
 ),
+
 FirstLastPunch AS (
     SELECT USRID, PunchDate,
            MIN(CASE WHEN DEVUID IN (547239461, 939342251, 546203817, 538167579) THEN PunchTime END) AS InTime,
@@ -36,6 +47,7 @@ FirstLastPunch AS (
     FROM Punches
     GROUP BY USRID, PunchDate
 ),
+
 TimeInnings AS (
     SELECT USRID, PunchDate, PunchTime,
            LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) AS NextPunch,
@@ -46,37 +58,33 @@ TimeInnings AS (
            END AS InTimeInnings
     FROM Punches
 )
+
 SELECT FLP.USRID, 
        TU.NM AS Employee_Name, 
        TU.DEPARTMENT, 
        TU.TITLE, 
        FLP.PunchDate, 
-       COALESCE(FLP.InTime, '--') AS InTime,  -- Ensuring NULL values are handled
+       COALESCE(FLP.InTime, '--') AS InTime,
        COALESCE(FLP.OutTime, '--') AS OutTime,
        FORMAT(DATEADD(SECOND, COALESCE(SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_InTime,
        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) - SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_OutTime,
        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
+
        CASE 
-           WHEN FLP.InTime IS NULL THEN 'ABSENT'
-           WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) <= 5 * 3600  THEN 'ABSENT'
-           
-           WHEN CONVERT(TIME, FLP.InTime) > '09:35:00' AND CONVERT(TIME, FLP.InTime) <= '10:00:00' THEN 'PRESENT with Late Count'
+           WHEN FLP.InTime IS NULL OR FLP.OutTime IS NULL THEN 'ABSENT'
+           WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 18000 THEN 'HALF DAY' -- less than 5 hours
            ELSE 'PRESENT'
        END AS Status
+
 FROM FirstLastPunch FLP
 LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
 LEFT JOIN BioStar2_ac.dbo.T_USR TU ON FLP.USRID = TU.USRID
 WHERE TU.NM IS NOT NULL AND FLP.USRID NOT IN (1, 101)
 GROUP BY FLP.USRID, TU.NM, FLP.PunchDate, FLP.InTime, FLP.OutTime, TU.DEPARTMENT, TU.TITLE
-HAVING 
-    CASE 
-        WHEN FLP.InTime IS NULL THEN 'ABSENT'
-        WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) >= 4 * 3600 AND DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 7 * 3600 THEN 'HALF DAY'
-        WHEN CONVERT(TIME, FLP.InTime) > '10:00:00' THEN 'HALF DAY'
-        WHEN CONVERT(TIME, FLP.InTime) > '09:35:00' AND CONVERT(TIME, FLP.InTime) <= '10:00:00' THEN 'PRESENT with Late Count'
-        ELSE 'PRESENT'
-    END NOT IN ('')
 ORDER BY FLP.USRID, FLP.PunchDate;
+
+        
+
 
 
 

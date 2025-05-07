@@ -8,6 +8,7 @@ const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5
 const Login = ({ setIsAuthenticated }) => {
   const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -28,8 +29,15 @@ const Login = ({ setIsAuthenticated }) => {
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('token', 'authenticated'); // Simple token for now
         
-        setIsAuthenticated(true);
-        navigate('/');
+        // Show success message before redirect
+        setLoginSuccess(true);
+        setError('');
+        
+        // Delay navigation to show success message
+        setTimeout(() => {
+          setIsAuthenticated(true);
+          navigate('/');
+        }, 1500);
       } else {
         setError('Invalid User ID');
       }
@@ -62,9 +70,15 @@ const Login = ({ setIsAuthenticated }) => {
           {error && (
             <div className="error-message">{error}</div>
           )}
+          
+          {loginSuccess && (
+            <div className="success-message">
+              <i className="fas fa-check-circle"></i> Login Successful, redirecting...
+            </div>
+          )}
   
           <div>
-            <button type="submit">Sign in</button>
+            <button type="submit" disabled={loginSuccess}>Sign in</button>
           </div>
         </form>
       </div>
