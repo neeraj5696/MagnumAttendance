@@ -114,11 +114,12 @@ const Attendance = () => {
   // fetching the data form api
   const fetchAttendanceData = async () => {
     try {
-      console.log("Fetching from:", API_BASE_URL); // Debug log
+      console.log("Fetching from:", API_BASE_URL);
       const response = await axios.get(`${API_BASE_URL}/api/test-db`);
-      setAttendanceData(response.data);
-      setFilteredData(response.data);
-      console.log(response.data);
+      // Filter data for logged-in user only
+      const userData = response.data.filter(record => record.USRID === user.id);
+      setAttendanceData(userData);
+      setFilteredData(userData);
     } catch (error) {
       console.error("Error fetching attendance data:", error);
     }
