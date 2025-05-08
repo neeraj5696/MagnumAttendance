@@ -16,77 +16,189 @@ app.get("/", (req, res) => {
   res.send("Hello Magnum");
 });
 
-app.get("/api/test-db", async (req, res) => {
+// API endpoint to check button status
+app.get("/api/check-button-status", async (req, res) => {
+  try {
+    const { userId, date } = req.query;
+    
+    if (!userId || !date) {
+      return res.status(400).json({ error: "UserID and date are required" });
+    }
+    
+    console.log(`Checking button status for userId: ${userId}, date: ${date}`);
+    
+    const pool = await sql.connect();
+    
+    // Use the correct column names for the T_EmpReq table
+    try {
+      const result = await pool.request()
+        .input('userId', sql.VarChar, userId)
+        .input('date', sql.VarChar, date)
+        .query(`
+          SELECT TOP 1
+            UserID, Date, EmpReqShow, MailSend, inTime, OutTime, Status
+          FROM T_EmpReq 
+          WHERE UserID = @userId AND Date = @date
+        `);
+          
+      if (result.recordset.length === 0) {
+        console.log(`No record found for user ${userId} on date ${date}`);
+        return res.json({ 
+          saveButtonDisabled: false,
+          requestApprovalDisabled: false,
+          exists: false
+        });
+      }
+      
+      const record = result.recordset[0];
+      console.log('Found record:', record);
+      
+      // Use the exact column names from the table
+      const empReqShow = record.EmpReqShow;
+      const mailSend = record.MailSend;
+      
+      // Logic for button status with exact case matching
+      const saveButtonDisabled = empReqShow === 'NO' || empReqShow === 'No' || empReqShow === 'no';
+      const requestApprovalDisabled = 
+        (empReqShow === 'YES' || empReqShow === 'Yes' || empReqShow === 'yes') && 
+        (mailSend === 'Y' || mailSend === 'y');
+      
+      res.json({
+        saveButtonDisabled,
+        requestApprovalDisabled,
+        exists: true,
+        record: {
+          empReqShow,
+          mailSend,
+          inTime: record.inTime,
+          outTime: record.OutTime,
+          status: record.Status
+        }
+      });
+    } catch (error) {
+      console.error("Query error:", error);
+      res.json({ 
+        saveButtonDisabled: false,
+        requestApprovalDisabled: false,
+        exists: false,
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error("Error checking button status:", error);
+    res.json({ 
+      saveButtonDisabled: false,
+      requestApprovalDisabled: false,
+      exists: false,
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/attendance", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    console.log(`Fetching attendance data for user: ${userId}`);
+    
+    const pool = await sql.connect();
+    console.log("✅ Database connected successfully!");
+    
+    // Modified query to filter by specific user ID
+    const result = await pool.request()
+      .input('userId', sql.VarChar, userId)
+      .query(`
+      WITH Punches AS (
+        SELECT USRID, 
+               FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
+               FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
+               DEVUID
+        FROM BioStar2_ac.dbo.T_LG202502
+        WHERE USRID = @userId AND DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
+        
+        UNION ALL
+
+        SELECT USRID, 
+               FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
+               FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
+               DEVUID
+        FROM BioStar2_ac.dbo.T_LG202404
+        WHERE USRID = @userId AND DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
+    ),
+
+    FirstLastPunch AS (
+        SELECT USRID, PunchDate,
+               MIN(CASE WHEN DEVUID IN (547239461, 939342251, 546203817, 538167579) THEN PunchTime END) AS InTime,
+               MAX(CASE WHEN DEVUID IN (541654478, 538210081, 788932322, 111111111) THEN PunchTime END) AS OutTime
+        FROM Punches
+        GROUP BY USRID, PunchDate
+    ),
+
+    TimeInnings AS (
+        SELECT USRID, PunchDate, PunchTime,
+               LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) AS NextPunch,
+               CASE
+                   WHEN (ROW_NUMBER() OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) % 2) = 1
+                   THEN DATEDIFF(SECOND, PunchTime, LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime))
+                   ELSE NULL
+               END AS InTimeInnings
+        FROM Punches
+    )
+
+    SELECT FLP.USRID, 
+           TU.NM AS Employee_Name, 
+           TU.DEPARTMENT, 
+           TU.TITLE, 
+           FLP.PunchDate, 
+           COALESCE(FLP.InTime, '--') AS InTime,
+           COALESCE(FLP.OutTime, '--') AS OutTime,
+           FORMAT(DATEADD(SECOND, COALESCE(SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_InTime,
+           FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) - SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_OutTime,
+           FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
+
+           CASE 
+               WHEN FLP.InTime IS NULL OR FLP.OutTime IS NULL THEN 'ABSENT'
+               WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 18000 THEN 'HALF DAY' -- less than 5 hours
+               ELSE 'PRESENT'
+           END AS Status
+
+    FROM FirstLastPunch FLP
+    LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
+    LEFT JOIN BioStar2_ac.dbo.T_USR TU ON FLP.USRID = TU.USRID
+    WHERE TU.NM IS NOT NULL AND FLP.USRID = @userId
+    GROUP BY FLP.USRID, TU.NM, FLP.PunchDate, FLP.InTime, FLP.OutTime, TU.DEPARTMENT, TU.TITLE
+    ORDER BY FLP.PunchDate DESC;
+      `);
+
+    console.log(`Found ${result.recordset.length} records for user ${userId}`);
+    res.json(result.recordset);
+  } catch (error) {
+    console.error("❌ Database query failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// login route
+
+app.get("/api/LOGIN", async (req, res) => {
   try {
     const pool = await sql.connect();
     console.log("✅ Database connected successfully on Vercel!"); // ✅ Logs in the console instead
     const result = await pool.request().query(`
-    
-  WITH Punches AS (
-    SELECT USRID, 
-           FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
-           FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
-           DEVUID
-    FROM BioStar2_ac.dbo.T_LG202502
-    WHERE DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
-    
-    UNION ALL
-
-    SELECT USRID, 
-           FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
-           FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
-           DEVUID
-    FROM BioStar2_ac.dbo.T_LG202403
-    WHERE DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
-),
-
-FirstLastPunch AS (
-    SELECT USRID, PunchDate,
-           MIN(CASE WHEN DEVUID IN (547239461, 939342251, 546203817, 538167579) THEN PunchTime END) AS InTime,
-           MAX(CASE WHEN DEVUID IN (541654478, 538210081, 788932322, 111111111) THEN PunchTime END) AS OutTime
-    FROM Punches
-    GROUP BY USRID, PunchDate
-),
-
-TimeInnings AS (
-    SELECT USRID, PunchDate, PunchTime,
-           LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) AS NextPunch,
-           CASE
-               WHEN (ROW_NUMBER() OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) % 2) = 1
-               THEN DATEDIFF(SECOND, PunchTime, LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime))
-               ELSE NULL
-           END AS InTimeInnings
-    FROM Punches
-)
-
-SELECT FLP.USRID, 
-       TU.NM AS Employee_Name, 
-       TU.DEPARTMENT, 
-       TU.TITLE, 
-       FLP.PunchDate, 
-       COALESCE(FLP.InTime, '--') AS InTime,
-       COALESCE(FLP.OutTime, '--') AS OutTime,
-       FORMAT(DATEADD(SECOND, COALESCE(SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_InTime,
-       FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) - SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_OutTime,
-       FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
-
-       CASE 
-           WHEN FLP.InTime IS NULL OR FLP.OutTime IS NULL THEN 'ABSENT'
-           WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) < 18000 THEN 'HALF DAY' -- less than 5 hours
-           ELSE 'PRESENT'
-       END AS Status
-
-FROM FirstLastPunch FLP
-LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
-LEFT JOIN BioStar2_ac.dbo.T_USR TU ON FLP.USRID = TU.USRID
-WHERE TU.NM IS NOT NULL AND FLP.USRID NOT IN (1, 101)
-GROUP BY FLP.USRID, TU.NM, FLP.PunchDate, FLP.InTime, FLP.OutTime, TU.DEPARTMENT, TU.TITLE
-ORDER BY FLP.USRID, FLP.PunchDate;
-
-        
-
-
-
+    SELECT DISTINCT
+    U.USRID,
+    U.NM AS name,
+    U.EML AS email,
+    U.DEPARTMENT
+FROM 
+    (SELECT DISTINCT USRID FROM dbo.T_LG202402) AS LG
+INNER JOIN 
+    dbo.T_USR AS U ON LG.USRID = U.USRID;
 
     `);
 
@@ -277,12 +389,14 @@ app.post("/api/save-attendance", async (req, res) => {
 // Request approval route
 app.post("/api/request-approval", async (req, res) => {
   try {
-    const { USRID, PunchDate, Status, Reason } = req.body;
+    const { USRID, PunchDate, Status, Reason, EmpReqShow, MailSend } = req.body;
     console.log("Received approval request with data:", {
       USRID,
       PunchDate,
       Status,
       Reason,
+      EmpReqShow,
+      MailSend
     });
 
     if (!USRID || !PunchDate) {
@@ -294,26 +408,29 @@ app.post("/api/request-approval", async (req, res) => {
     // Check if record exists
     const checkResult = await pool
       .request()
-      .input("UserID", sql.VarChar, UserID)
-      .input("Date", sql.VarChar, Date)
-      .query(`SELECT * FROM T_EmpReq WHERE UserID = @UserID AND Date = @Date`);
+      .input("USRID", sql.VarChar, USRID)
+      .input("PunchDate", sql.VarChar, PunchDate)
+      .query(`SELECT * FROM T_EmpReq WHERE USRID = @USRID AND PunchDate = @PunchDate`);
 
     if (checkResult.recordset.length > 0) {
       // Update existing record
       await pool
         .request()
-        .input("UserID", sql.VarChar, UserID)
-        .input("Date", sql.VarChar, Date)
+        .input("USRID", sql.VarChar, USRID)
+        .input("PunchDate", sql.VarChar, PunchDate)
         .input("Status", sql.VarChar, Status)
         .input("Reason", sql.VarChar, Reason)
+        .input("EmpReqShow", sql.VarChar, EmpReqShow || 'Yes')
+        .input("MailSend", sql.Char, MailSend || 'Y')
         .input("UpdatedDate", sql.DateTime, new Date())
-        .input("ApprovalRequested", sql.Bit, 1).query(`
+        .query(`
           UPDATE T_EmpReq 
           SET Status = @Status, 
-              Reason = @Reason,
-              UpdatedDate = @UpdatedDate,
-              ApprovalRequested = @ApprovalRequested
-          WHERE USRID = @USRID AND SRVDT = @PunchDate
+              EmpReason = @Reason,
+              EmpDate = @UpdatedDate,
+              EmpReqShow = @EmpReqShow,
+              MailSend = @MailSend
+          WHERE UserID = @USRID AND Date = @PunchDate
         `);
       console.log("Updated existing approval request");
     } else {
@@ -324,16 +441,43 @@ app.post("/api/request-approval", async (req, res) => {
         .input("PunchDate", sql.VarChar, PunchDate)
         .input("Status", sql.VarChar, Status)
         .input("Reason", sql.VarChar, Reason)
+        .input("EmpReqShow", sql.VarChar, EmpReqShow || 'Yes')
+        .input("MailSend", sql.Char, MailSend || 'Y')
         .input("CreatedDate", sql.DateTime, new Date())
-        .input("IsApproved", sql.Bit, 0)
-        .input("ApprovalRequested", sql.Bit, 1).query(`
-          INSERT INTO T_EmpReq (USRID, SRVDT, Status, Reason, CreatedDate, IsApproved, ApprovalRequested)
-          VALUES (@USRID, @PunchDate, @Status, @Reason, @CreatedDate, @IsApproved, @ApprovalRequested)
+        .query(`
+          INSERT INTO T_EmpReq (
+            UserID, 
+            Date, 
+            Status, 
+            EmpReason, 
+            EmpDate,
+            EmpReqShow,
+            MailSend
+          )
+          VALUES (
+            @USRID, 
+            @PunchDate, 
+            @Status, 
+            @Reason, 
+            @CreatedDate,
+            @EmpReqShow,
+            @MailSend
+          )
         `);
       console.log("Created new approval request");
     }
 
-    res.status(200).json({ message: "Approval requested successfully" });
+    res.status(200).json({ 
+      message: "Approval requested successfully",
+      data: {
+        USRID,
+        PunchDate,
+        Status,
+        Reason,
+        EmpReqShow: EmpReqShow || 'Yes',
+        MailSend: MailSend || 'Y'
+      }
+    });
   } catch (error) {
     console.error("Error requesting approval:", error);
     res.status(500).json({ error: error.message });
@@ -359,12 +503,13 @@ app.post("/api/approve-attendance", async (req, res) => {
       .request()
       .input("USRID", sql.VarChar, USRID)
       .input("PunchDate", sql.VarChar, PunchDate)
-      .input("IsApproved", sql.Bit, 1)
-      .input("ApprovedDate", sql.DateTime, new Date()).query(`
+      .input("ManagerApproval", sql.VarChar, "Approved")
+      .input("ApprovedDate", sql.DateTime, new Date())
+      .query(`
         UPDATE T_EmpReq 
-        SET IsApproved = @IsApproved,
-            ApprovedDate = @ApprovedDate
-        WHERE USRID = @USRID AND SRVDT = @PunchDate
+        SET ManagerApproal = @ManagerApproval,
+            ManagerDate = @ApprovedDate
+        WHERE UserID = @USRID AND Date = @PunchDate
       `);
 
     console.log(
@@ -388,12 +533,13 @@ app.post("/api/approve-all", async (req, res) => {
 
     const result = await pool
       .request()
-      .input("IsApproved", sql.Bit, 1)
-      .input("ApprovedDate", sql.DateTime, new Date()).query(`
+      .input("ManagerApproval", sql.VarChar, "Approved")
+      .input("ManagerDate", sql.DateTime, new Date())
+      .query(`
         UPDATE T_EmpReq 
-        SET IsApproved = @IsApproved,
-            ApprovedDate = @ApprovedDate
-        WHERE ApprovalRequested = 1 AND IsApproved = 0
+        SET ManagerApproal = @ManagerApproval,
+            ManagerDate = @ManagerDate
+        WHERE EmpReqShow = 'Yes' AND MailSend = 'Y' AND (ManagerApproal IS NULL OR ManagerApproal <> 'Approved')
       `);
 
     console.log(

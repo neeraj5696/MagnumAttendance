@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./App.css"; // Import custom CSS
 import {
@@ -8,7 +8,13 @@ import {
   isBefore,
   isAfter,
   isEqual,
+  endOfMonth,
+  startOfMonth,
+  isWithinInterval,
 } from "date-fns";
+import { FaRegSave, FaEnvelope, FaCheck, FaThumbsUp, FaCalendarAlt, FaFilter, FaUndo, FaSignOutAlt, FaExclamationTriangle } from "react-icons/fa";
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 // makeing the dynaic backend address
 const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000`;
@@ -26,12 +32,12 @@ const Attendance = () => {
   const [statusInputs, setStatusInputs] = useState({});
   const [reasonInputs, setReasonInputs] = useState({});
   const [savedRecords, setSavedRecords] = useState(() => {
-    const saved = localStorage.getItem("savedAttendanceRecords");
+  const saved = localStorage.getItem("savedAttendanceRecords");
     return saved ? JSON.parse(saved) : {};
   });
   const [monthRanges, setMonthRanges] = useState([]);
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
+  const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -44,38 +50,55 @@ const Attendance = () => {
   // Add popupRemarks state
   const [popupRemarks, setPopupRemarks] = useState({ show: false, index: null, value: '' });
 
-  // Add new useEffect to handle filtering when selectedEmployee changes
+  const [dateRange, setDateRange] = useState([startOfMonth(new Date()), endOfMonth(new Date())]);
+  const [startDate, endDate] = dateRange;
+  const datePickerRef = useRef(null);
+
+  // Optimize the first useEffect to make sure we're not repeating logic
   useEffect(() => {
+    if (!attendanceData || attendanceData.length === 0) return;
+
+    // Apply all filters (date + employee + mispunch) in a single function
     let filtered = [...attendanceData];
 
-    if (selectedEmployee !== "-1") {
-      filtered = attendanceData.filter(
-        (record) => record.USRID === selectedEmployee
-      );
+    // Date range filter (if date is selected)
+    if (dateRange[0]) {
+      filtered = filtered.filter(record => {
+        const recordDate = parseISO(record.PunchDate);
+        if (dateRange[1]) {
+          return isWithinInterval(recordDate, {
+            start: dateRange[0],
+            end: dateRange[1]
+          });
+        } else {
+          return isAfter(recordDate, dateRange[0]) || isEqual(recordDate, dateRange[0]);
+        }
+      });
     }
 
+    // Employee filter
+    if (user) {
+      filtered = filtered.filter(record => record.USRID === user.id);
+    } else if (selectedEmployee !== "-1") {
+      filtered = filtered.filter(record => record.USRID === selectedEmployee);
+    }
+
+    // Mispunch filter
     if (showMispunchesOnly) {
-      filtered = filtered.filter((record) => isMispunch(record));
+      filtered = filtered.filter(record => isMispunch(record));
     }
 
     setFilteredData(filtered);
-    setIsFiltered(selectedEmployee !== "-1" || showMispunchesOnly);
-  }, [selectedEmployee, showMispunchesOnly, attendanceData]);
 
-  // Add new useEffect to handle filtering when user changes
-  useEffect(() => {
-    if (!user) return;
-    
-    let filtered = [...attendanceData];
-    filtered = filtered.filter(record => record.USRID === user.id);
-    
-    if (showMispunchesOnly) {
-      filtered = filtered.filter((record) => isMispunch(record));
-    }
+    // Set isFiltered to true if any filter is active
+    const hasActiveFilter =
+      selectedEmployee !== "-1" ||
+      showMispunchesOnly ||
+      dateRange[0] !== null;
 
-    setFilteredData(filtered);
-    setIsFiltered(showMispunchesOnly);
-  }, [user, showMispunchesOnly, attendanceData]);
+    setIsFiltered(hasActiveFilter);
+
+  }, [dateRange, selectedEmployee, showMispunchesOnly, attendanceData, user]);
 
   // Helper function to get time in HH:mm format or empty string
   const getTimeValue = (timeStr) => {
@@ -106,30 +129,180 @@ const Attendance = () => {
     }
   }, [filteredData]);
 
-  // Function to check if a record has mispunch (missing or invalid inTime or outTime)
+  // Improve the isMispunch function to properly detect missing punch times
   const isMispunch = (record) => {
-    // Check for null, empty string, or placeholder values
-    const missingInTime =
-      !record.InTime || record.InTime === "" || record.InTime === "--";
-    const missingOutTime =
-      !record.OutTime || record.OutTime === "" || record.OutTime === "--";
+    // First check for undefined or null values
+    if (!record) return false;
 
-    return missingInTime || missingOutTime;
+    // Check for InTime and OutTime properties
+    const missingInTime = !record.InTime || record.InTime === "" || record.InTime === "--";
+    const missingOutTime = !record.OutTime || record.OutTime === "" || record.OutTime === "--";
+
+    // Also check FirstPunch and LastPunch in case the API returns these
+    const missingFirstPunch = record.FirstPunch && (record.FirstPunch === "" || record.FirstPunch === "--");
+    const missingLastPunch = record.LastPunch && (record.LastPunch === "" || record.LastPunch === "--");
+
+    return missingInTime || missingOutTime || missingFirstPunch || missingLastPunch;
   };
 
-  // fetching the data form api
-  const fetchAttendanceData = async () => {
+  // Fix the handleMispunchFilterChange function to work directly with state
+  const handleMispunchFilterChange = (e) => {
+    const isChecked = e.target.checked;
+    setShowMispunchesOnly(isChecked);
+    
+    // Get currently filtered data based on date range and employee
+    let baseData = [...attendanceData];
+    
+    // Apply date filter
+    if (dateRange[0]) {
+      baseData = baseData.filter(record => {
+        const recordDate = parseISO(record.PunchDate);
+        if (dateRange[1]) {
+          return isWithinInterval(recordDate, { 
+            start: dateRange[0], 
+            end: dateRange[1] 
+          });
+        } else {
+          return isAfter(recordDate, dateRange[0]) || isEqual(recordDate, dateRange[0]);
+        }
+      });
+    }
+    
+    // Apply employee filter
+    if (user) {
+      baseData = baseData.filter(record => record.USRID === user.id);
+    } else if (selectedEmployee !== "-1") {
+      baseData = baseData.filter(record => record.USRID === selectedEmployee);
+    }
+    
+    // Apply mispunches filter if checked
+    if (isChecked) {
+      baseData = baseData.filter(record => isMispunch(record));
+    }
+    
+    setFilteredData(baseData);
+    setIsFiltered(isChecked || selectedEmployee !== "-1" || dateRange[0] !== null);
+  };
+
+  // Add a function to fetch button status
+  const fetchButtonStatus = async (userId, date) => {
     try {
-      setIsLoading(true);
-      console.log("Fetching from:", API_BASE_URL);
-      const response = await axios.get(`${API_BASE_URL}/api/test-db`);
-      // Filter data for logged-in user only
-      const userData = response.data.filter(record => record.USRID === user.id);
-      setAttendanceData(userData);
-      setFilteredData(userData);
-      setIsLoading(false);
+      console.log(`Fetching button status for ${userId} - ${date}`);
+      const response = await axios.get(`${API_BASE_URL}/api/check-button-status`, {
+        params: { userId, date }
+      });
+
+      // Create a unique key for this record
+      const recordKey = `${userId}_${date}`;
+
+      // Log the response for debugging
+      console.log(`Button status response for ${recordKey}:`, response.data);
+
+      // Update the buttonStatus state
+      setButtonStatus(prev => ({
+        ...prev,
+        [recordKey]: response.data
+      }));
+
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching button status:", error);
+
+      // If it's an axios error with a response, log more details
+      if (error.response) {
+        console.error("Error response data:", error.response.data);
+        console.error("Error response status:", error.response.status);
+      }
+
+      // Return default values that won't disable the buttons
+      return {
+        saveButtonDisabled: false,
+        requestApprovalDisabled: false,
+        error: error.message
+      };
+    }
+  };
+
+  // Simplified and optimized fetchAttendanceData function
+  const fetchAttendanceData = async () => {
+    setIsLoading(true);
+    try {
+      // Only proceed if we have a user
+      if (!user || !user.id) {
+        console.log("No user found, cannot fetch attendance data");
+        setFilteredData([]);
+        setAttendanceData([]);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log(`Fetching attendance data for user: ${user.id}`);
+      
+      // Pass the user ID as a query parameter to filter on the server side
+      const response = await axios.get(`${API_BASE_URL}/api/attendance`, {
+        params: { userId: user.id },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        }
+      });
+      
+      if (response.data && response.data.length > 0) {
+        const formattedData = response.data.map(record => ({
+          ...record,
+          formattedDate: format(parseISO(record.PunchDate), 'yyyy-MM-dd')
+        }));
+        
+        console.log(`Loaded ${formattedData.length} records for user ${user.id}`);
+        
+        setAttendanceData(formattedData);
+        
+        // Extract unique months from data
+        const months = [...new Set(formattedData.map(record => {
+          const date = parseISO(record.PunchDate);
+          return format(date, 'yyyy-MM');
+        }))].sort();
+        
+        // Create month ranges
+        const ranges = months.map(monthStr => {
+          const [year, month] = monthStr.split('-').map(Number);
+          const firstDay = new Date(year, month - 1, 1);
+          const lastDay = new Date(year, month, 0);
+          return {
+            start: firstDay,
+            end: lastDay,
+            label: format(firstDay, 'MMMM yyyy')
+          };
+        });
+        
+        setAvailableMonthRanges(ranges);
+        
+        // Set default date range to most recent month and filter data
+        if (ranges.length > 0) {
+          const mostRecentMonth = ranges[ranges.length - 1];
+          setDateRange([mostRecentMonth.start, mostRecentMonth.end]);
+          
+          const filteredForMonth = formattedData.filter(record => {
+            const recordDate = parseISO(record.PunchDate);
+            return isWithinInterval(recordDate, {
+              start: mostRecentMonth.start,
+              end: mostRecentMonth.end
+            });
+          });
+          
+          setFilteredData(filteredForMonth);
+        } else {
+          setFilteredData(formattedData);
+        }
+      } else {
+        console.log("No attendance data found for user");
+        setFilteredData([]);
+        setAttendanceData([]);
+      }
     } catch (error) {
       console.error("Error fetching attendance data:", error);
+      setFilteredData([]);
+      setAttendanceData([]);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -336,6 +509,12 @@ const Attendance = () => {
     const DEPARTMENT = record.DEPARTMENT;
     const EmpDate = sqlDateTime;
 
+    // Check if required fields are present
+    if (!record.USRID || !record.PunchDate || !timeInput.inTime || !timeInput.outTime) {
+      alert("User ID, Date, In Time, and Out Time are all required.");
+      return;
+    }
+
     // Format the datetime values
     const formattedInTime = formatDateTime(record.PunchDate, timeInput.inTime);
     const formattedOutTime = formatDateTime(
@@ -345,22 +524,20 @@ const Attendance = () => {
 
     // Truncate or format values to fit SQL Server constraints
     const saveData = {
-      USRID: record.USRID.substring(0, 50), // Assuming UserId is varchar(50)
-      PunchDate: record.PunchDate.substring(0, 10), // Date format YYYY-MM-DD
-      InTime: formattedInTime,
+      // Use UserID (not USRID) to match server column name
+      UserID: record.USRID.substring(0, 50),
+      // Use Date (not PunchDate) to match server column name
+      Date: record.PunchDate.substring(0, 10),
+      // Use lowercase 'inTime' to match the column name in the database
+      inTime: formattedInTime,
       OutTime: formattedOutTime,
-      Status: statusInput.substring(0, 50), // Assuming Status is varchar(50)
-      Reason: reasonInput.substring(0, 500), // Assuming Reason is varchar(500)
+      Status: statusInput.substring(0, 50),
+      EmpReason: reasonInput.substring(0, 500),
       EmpReqShow: "No",
-      ManagerApproval: "Pending",
-      DEPARTMENT: DEPARTMENT ? DEPARTMENT.substring(0, 100) : null, // Assuming DEPARTMENT is varchar(100)
+      ManagerApproal: "Pending", // Note the spelling
+      DEPARTMENT: DEPARTMENT ? DEPARTMENT.substring(0, 100) : null,
       EmpDate: EmpDate
     };
-
-    if (!timeInput.inTime || !timeInput.outTime) {
-      alert("Both In and Out times must be provided.");
-      return;
-    }
 
     // Added: Show data in console log and alert before sending
     console.log("Data to be sent:", saveData);
@@ -392,6 +569,9 @@ const Attendance = () => {
         JSON.stringify(updatedSavedRecords)
       );
 
+      // Update button status after save
+      await fetchButtonStatus(record.USRID, record.PunchDate);
+
       fetchAttendanceData(); // Refresh data
     } catch (error) {
       console.error(
@@ -399,8 +579,7 @@ const Attendance = () => {
         error.response?.data || error.message
       );
       alert(
-        `Error saving attendance: ${
-          error.response?.data?.error || error.message
+        `Error saving attendance: ${error.response?.data?.error || error.message
         }`
       );
     }
@@ -412,11 +591,21 @@ const Attendance = () => {
     const statusInput = statusInputs[index] || record.Status;
     const reasonInput = reasonInputs[index] || "";
 
+    // Check if required fields are present
+    if (!record.USRID || !record.PunchDate || !timeInput.inTime || !timeInput.outTime) {
+      alert("User ID, Date, In Time, and Out Time are all required.");
+      return;
+    }
+
     const approvalData = {
-      USRID: record.USRID,
-      PunchDate: record.PunchDate,
+      // Use UserID (not USRID) to match server column name
+      UserID: record.USRID,
+      // Use Date (not PunchDate) to match server column name
+      Date: record.PunchDate,
       Status: statusInput,
-      Reason: reasonInput,
+      EmpReason: reasonInput,
+      EmpReqShow: "Yes",
+      MailSend: "Y"
     };
 
     console.log("Requesting approval with data:", approvalData);
@@ -428,6 +617,10 @@ const Attendance = () => {
       );
       console.log("Approval request response:", response.data);
       alert("Approval requested successfully!");
+
+      // Update button status after request
+      await fetchButtonStatus(record.USRID, record.PunchDate);
+
       fetchAttendanceData(); // Refresh data
     } catch (error) {
       console.error(
@@ -435,8 +628,7 @@ const Attendance = () => {
         error.response?.data || error.message
       );
       alert(
-        `Error requesting approval: ${
-          error.response?.data?.error || error.message
+        `Error requesting approval: ${error.response?.data?.error || error.message
         }`
       );
     }
@@ -445,8 +637,10 @@ const Attendance = () => {
   const HandleApprove = async (index) => {
     const record = filteredData[index];
     const approveData = {
-      USRID: record.USRID,
-      PunchDate: record.PunchDate,
+      // Use UserID (not USRID) to match server column name
+      UserID: record.USRID,
+      // Use Date (not PunchDate) to match server column name
+      Date: record.PunchDate
     };
 
     console.log("Approving attendance with data:", approveData);
@@ -465,8 +659,7 @@ const Attendance = () => {
         error.response?.data || error.message
       );
       alert(
-        `Error approving attendance: ${
-          error.response?.data?.error || error.message
+        `Error approving attendance: ${error.response?.data?.error || error.message
         }`
       );
     }
@@ -486,35 +679,48 @@ const Attendance = () => {
         error.response?.data || error.message
       );
       alert(
-        `Error approving all attendance: ${
-          error.response?.data?.error || error.message
+        `Error approving all attendance: ${error.response?.data?.error || error.message
         }`
       );
     }
   };
 
-  // Function to handle filter - updated to include mispunch filter
-  const handleFilter = () => {
-    let filtered = [...attendanceData];
-
-    // Filter by employee if selected
-    if (selectedEmployee !== "-1") {
-      filtered = filtered.filter((record) => record.USRID === selectedEmployee);
-    }
-
-    // Filter by mispunches if checkbox is checked
-    if (showMispunchesOnly) {
-      filtered = filtered.filter((record) => isMispunch(record));
-    }
-
-    setFilteredData(filtered);
-    setIsFiltered(true);
-  };
-
+  // Update handleReset to use the applyFilters function with reset parameters
   const handleReset = () => {
-    setFilteredData(attendanceData);
     setSelectedEmployee("-1");
     setShowMispunchesOnly(false);
+    
+    // Reset to current month's data
+    if (availableMonthRanges.length > 0) {
+      const currentDate = new Date();
+      let currentMonth = availableMonthRanges[0]; // Default to first month
+      
+      // Try to find current month in available ranges
+      for (const range of availableMonthRanges) {
+        if (currentDate >= range.start && currentDate <= range.end) {
+          currentMonth = range;
+          break;
+        }
+      }
+      
+      // Set date range to current month
+      setDateRange([currentMonth.start, currentMonth.end]);
+      
+      // Filter data for the current month
+      const filtered = attendanceData.filter(record => {
+        const recordDate = parseISO(record.PunchDate);
+        return isWithinInterval(recordDate, {
+          start: currentMonth.start,
+          end: currentMonth.end
+        });
+      });
+      
+      setFilteredData(filtered);
+    } else {
+      // If no months available, just show all data
+      setFilteredData(attendanceData);
+    }
+    
     setIsFiltered(false);
   };
 
@@ -533,7 +739,7 @@ const Attendance = () => {
         return {};
     }
   };
-  
+
 
   // Get unique employees for dropdown
   const getUniqueEmployees = () => {
@@ -566,7 +772,7 @@ const Attendance = () => {
   };
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(15);
+  const [itemsPerPage] = useState(10);
 
   // Add pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -608,21 +814,133 @@ const Attendance = () => {
     handlePopupClose();
   };
 
+  const [buttonStatus, setButtonStatus] = useState({}); // Add state for button status
+
+  const handleDatePickerClick = () => {
+    if (datePickerRef.current) {
+      datePickerRef.current.setOpen(true);
+    }
+  };
+
+  // Add state for available month ranges
+  const [availableMonthRanges, setAvailableMonthRanges] = useState([]);
+
+  // Update the helper function to apply filters when a month is selected
+  const selectMonthRange = (e) => {
+    const monthIndex = parseInt(e.target.value);
+    if (isNaN(monthIndex) || monthIndex < 0 || monthIndex >= availableMonthRanges.length) return;
+    
+    const selectedRange = availableMonthRanges[monthIndex];
+    const newDateRange = [selectedRange.start, selectedRange.end];
+    
+    // Set the date range
+    setDateRange(newDateRange);
+    
+    // Filter data for selected month
+    let filtered = attendanceData.filter(record => {
+      const recordDate = parseISO(record.PunchDate);
+      return isWithinInterval(recordDate, {
+        start: selectedRange.start,
+        end: selectedRange.end
+      });
+    });
+    
+    // Apply other active filters
+    if (user) {
+      filtered = filtered.filter(record => record.USRID === user.id);
+    } else if (selectedEmployee !== "-1") {
+      filtered = filtered.filter(record => record.USRID === selectedEmployee);
+    }
+    
+    if (showMispunchesOnly) {
+      filtered = filtered.filter(record => isMispunch(record));
+    }
+    
+    setFilteredData(filtered);
+    setIsFiltered(true);
+  };
+
+  // Make sure the filter functions integrate both date range and mispunches filter
+  const applyFilters = (data, options = {}) => {
+    const {
+      employee = selectedEmployee,
+      dateRange = [startDate, endDate],
+      showMispunches = showMispunchesOnly
+    } = options;
+
+    let filtered = [...data];
+
+    // Apply date range filter if both dates are set
+    if (dateRange[0] && dateRange[1]) {
+      filtered = filtered.filter(record => {
+        const recordDate = parseISO(record.PunchDate);
+        return isWithinInterval(recordDate, {
+          start: dateRange[0],
+          end: dateRange[1]
+        });
+      });
+    }
+
+    // Apply employee filter if selected
+    if (employee !== "-1" && employee) {
+      filtered = filtered.filter(record => record.USRID === employee);
+    }
+
+    // Apply mispunches filter if enabled
+    if (showMispunches) {
+      filtered = filtered.filter(record => isMispunch(record));
+    }
+
+    return filtered;
+  };
+
+  // Add the handleFilter function back, but simplified to use the existing state
+  const handleFilter = () => {
+    if (!attendanceData || attendanceData.length === 0) return;
+
+    // Simply trigger a filtering based on current filter state values
+    // This is just a manual trigger for the same filtering that useEffect handles
+    let filtered = [...attendanceData];
+
+    // Date range filter
+    if (dateRange[0]) {
+      filtered = filtered.filter(record => {
+        const recordDate = parseISO(record.PunchDate);
+        if (dateRange[1]) {
+          return isWithinInterval(recordDate, {
+            start: dateRange[0],
+            end: dateRange[1]
+          });
+        } else {
+          return isAfter(recordDate, dateRange[0]) || isEqual(recordDate, dateRange[0]);
+        }
+      });
+    }
+
+    // Employee filter
+    if (user) {
+      filtered = filtered.filter(record => record.USRID === user.id);
+    } else if (selectedEmployee !== "-1") {
+      filtered = filtered.filter(record => record.USRID === selectedEmployee);
+    }
+
+    // Mispunch filter
+    if (showMispunchesOnly) {
+      filtered = filtered.filter(record => isMispunch(record));
+    }
+
+    setFilteredData(filtered);
+    setIsFiltered(true);
+  };
+
   return (
     <div className="attendance-container">
       <header className="attendance-header">
         <div className="header-content">
-          <h1>Attendance Management</h1>
-          <div className="user-section">
-            <div className="user-info">
-              <span className="welcome-text">Welcome,</span>
-              <span className="user-name">{user?.name}</span>
-              <span className="user-department">({user?.department})</span>
-            </div>
-            <button onClick={handleLogout} className="logout-btn">
-              <i className="fas fa-sign-out-alt"></i> Logout
-            </button>
-          </div>
+          <h1>Regularize Attendance</h1>
+          <button className="logout-btn" onClick={handleLogout}>
+            <FaSignOutAlt /> Logout
+          </button>
         </div>
       </header>
 
@@ -633,59 +951,81 @@ const Attendance = () => {
       )}
 
       <div className="filters-section">
-        <div className="filter-group">
-          <div className="filter-item">
-            <label>Employee Name</label>
-            <div className="employee-name">{user?.name}</div>
-          </div>
-          <div className="filter-item">
-            <label>Attendance List</label>
-            <select
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-              className="filter-select"
-            >
-              <option value="-1">Select Employee</option>
-              {uniqueEmployees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-item">
-            <label>Month</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="filter-select"
-            >
-              {monthRanges.map((range) => (
-                <option key={range.value} value={range.value}>
-                  {range.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-item checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={showMispunchesOnly}
-                onChange={(e) => setShowMispunchesOnly(e.target.checked)}
-              />
-              <span>Show Mispunches Only</span>
-            </label>
-          </div>
-          <div className="filter-actions">
-            <button className="filter-btn" onClick={handleFilter}>
-              <i className="fas fa-filter"></i> Filter
+        <div className="filter-wrapper">
+          <div className="filter-header">
+            <h3><FaFilter /> Filter Options</h3>
+            <button className="reset-btn action-button" onClick={handleReset}>
+              <FaUndo /> Reset
             </button>
-            {isFiltered && (
-              <button className="reset-btn" onClick={handleReset}>
-                <i className="fas fa-undo"></i> Reset
+          </div>
+          
+          <div className="filter-grid">
+            <div className="filter-item employee-select">
+              <label>Manager Name</label>
+              <div className="select-container">
+                <select
+                  value={selectedEmployee}
+                  onChange={(e) => setSelectedEmployee(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="-1">All Managers</option>
+                  {uniqueEmployees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="filter-item date-range-picker">
+              <label>Date Range</label>
+              <div className="date-picker-wrapper" onClick={handleDatePickerClick}>
+                <FaCalendarAlt className="icon" />
+                <span>
+                  {dateRange[0] ? format(dateRange[0], 'MMM dd, yyyy') : 'Start'} - 
+                  {dateRange[1] ? format(dateRange[1], 'MMM dd, yyyy') : 'End'}
+                </span>
+                <DatePicker
+                  ref={datePickerRef}
+                  selectsRange={true}
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={(update) => {
+                    setDateRange(update);
+                  }}
+                  monthsShown={2}
+                  className="hidden-date-picker"
+                  highlightDates={availableMonthRanges.map(range => ({
+                    start: range.start,
+                    end: range.end
+                  }))}
+                />
+              </div>
+            </div>
+            
+            <div className="filter-item checkbox-group">
+              <label>&nbsp;</label>
+              <div className="checkbox-container">
+                <FaExclamationTriangle className="icon" />
+                <input
+                  type="checkbox"
+                  id="mispunchesCheck"
+                  checked={showMispunchesOnly}
+                  onChange={handleMispunchFilterChange}
+                />
+                <label htmlFor="mispunchesCheck" className="checkbox-label">
+                  Mispunches Only
+                </label>
+              </div>
+            </div>
+            
+            <div className="filter-actions">
+              <label>&nbsp;</label>
+              <button className="filter-btn action-button" onClick={handleFilter}>
+                <FaFilter /> Apply
               </button>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -694,25 +1034,25 @@ const Attendance = () => {
         <table className="attendance-table">
           <thead>
             <tr>
-              <th colSpan="4"></th>
-              <th colSpan="3">Devices</th>
-              <th colSpan="3">Regularized</th>
-              <th colSpan="3"></th>
+             
+              <th colSpan="7">Devices</th>
+              <th colSpan="7">Regularized</th>
+             
             </tr>
             <tr>
-              <th width="4%">Select</th>
-              <th width="8%">Poornata ID</th>
-              <th width="10%">Name</th>
-              <th width="8%">Department</th>
+              <th width="2%">Select</th>
+              <th width="7%">Poornata ID</th>
+              <th width="9%">Name</th>
+              <th width="7%">Department</th>
               <th width="5%">Date</th>
               <th width="5%">IN</th>
               <th width="5%">OUT</th>
-              <th width="5%">Hours</th>
+              <th width="4%">Hours</th>
               <th className="settimeE" width="6%">IN</th>
               <th className="settimeE" width="6%">OUT</th>
               <th width="5%">Hours</th>
               <th width="7%">Status</th>
-              <th width="9%">Remarks</th>
+              <th width="7%">Remarks</th>
               <th width="10%">Action</th>
             </tr>
           </thead>
@@ -720,7 +1060,10 @@ const Attendance = () => {
             {currentItems.map((record, index) => (
               <tr key={index} style={getRowStyle(record)}>
                 <td>
-                  <input type="checkbox" className="row-checkbox" />
+                  <input
+                    type="checkbox"
+                    className="row-checkbox"
+                  />
                 </td>
                 <td>{record.USRID}</td>
                 <td>{record.Employee_Name}</td>
@@ -734,7 +1077,7 @@ const Attendance = () => {
                     type="time"
                     value={
                       timeInputs[index]?.inTime !== undefined &&
-                      timeInputs[index]?.inTime !== ""
+                        timeInputs[index]?.inTime !== ""
                         ? timeInputs[index].inTime
                         : getTimeValue(record.InTime)
                     }
@@ -749,7 +1092,7 @@ const Attendance = () => {
                     type="time"
                     value={
                       timeInputs[index]?.outTime !== undefined &&
-                      timeInputs[index]?.outTime !== ""
+                        timeInputs[index]?.outTime !== ""
                         ? timeInputs[index].outTime
                         : getTimeValue(record.OutTime)
                     }
@@ -772,25 +1115,27 @@ const Attendance = () => {
                   )}
                 </td>
                 <td>
-                <select>
-                      <option value={record.Status} selected>
-                        {record.Status}{" "}
-                      </option>
-                      {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
-                        .filter((status) => status !== record.Status)
-                        .map((status) => (
-                          <option key={status} value={status}>
-                            {status}{" "}
-                          </option>
-                        ))}
-                    </select>
+                  <select>
+                    <option value={record.Status} selected>
+                      {record.Status}{" "}
+                    </option>
+                    {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
+                      .filter((status) => status !== record.Status)
+                      .map((status) => (
+                        <option key={status} value={status}>
+                          {status}{" "}
+                        </option>
+                      ))}
+                  </select>
                 </td>
                 <td>
                   {record.Status === "PRESENT" ? (
-                    <span className="no-action">No Action Needed</span>
+                    <div className="no-action-container">
+                      <span className="no-action">No Action Needed</span>
+                    </div>
                   ) : (
                     <div className="remarks-container">
-                      <div 
+                      <div
                         className="reason-input"
                         onClick={() => handleRemarksClick(index, reasonInputs[index])}
                       >
@@ -805,20 +1150,24 @@ const Attendance = () => {
                     title="Save"
                     disabled={
                       record.Status === "PRESENT" ||
-                      savedRecords[`${record.USRID}_${record.PunchDate}`]
+                      savedRecords[`${record.USRID}_${record.PunchDate}`] ||
+                      buttonStatus[`${record.USRID}_${record.PunchDate}`]?.saveButtonDisabled
                     }
                     className="action-btn save-btn"
                   >
-                    <i className="fas fa-save"></i>
+                    <FaRegSave className="btn-icon" />
                   </button>
 
                   <button
                     onClick={() => handleRequestApproval(index)}
                     title="Request Approval"
-                    disabled={record.Status === "PRESENT"}
+                    disabled={
+                      record.Status === "PRESENT" ||
+                      buttonStatus[`${record.USRID}_${record.PunchDate}`]?.requestApprovalDisabled
+                    }
                     className="action-btn approval-btn"
                   >
-                    <i className="fas fa-envelope"></i>
+                    <FaEnvelope className="btn-icon" />
                   </button>
 
                   <button
@@ -827,7 +1176,7 @@ const Attendance = () => {
                     disabled={record.Status === "PRESENT"}
                     className="action-btn approve-btn"
                   >
-                    <i className="fas fa-check"></i>
+                    <FaThumbsUp className="btn-icon" />
                   </button>
                 </td>
               </tr>
@@ -835,7 +1184,7 @@ const Attendance = () => {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan="12" className="approve-all-cell">
+              <td colSpan="13" className="approve-all-cell">
                 Approve All:
               </td>
               <td>
@@ -844,7 +1193,7 @@ const Attendance = () => {
                   title="Approve All"
                   className="approve-all-btn"
                 >
-                  <i className="fas fa-check-double"></i> Approve All
+                  <FaThumbsUp className="btn-icon" /> APPROVE ALL
                 </button>
               </td>
             </tr>
@@ -861,11 +1210,11 @@ const Attendance = () => {
           >
             <i className="fas fa-chevron-left"></i> Previous
           </button>
-          
+
           <span className="pagination-info">
             Page {currentPage} of {totalPages}
           </span>
-          
+
           <button
             className="pagination-button"
             onClick={() => handlePageChange(currentPage + 1)}

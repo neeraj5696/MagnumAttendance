@@ -9,41 +9,54 @@ const Login = ({ setIsAuthenticated }) => {
   const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/test-db`);
-      const userExists = response.data.some(record => record.USRID === userId);
+    setIsLoading(true);
+    setError('');
 
-      if (userExists) {
-        const userRecord = response.data.find(record => record.USRID === userId);
+    if (!userId.trim()) {
+      setError('Please enter your User ID');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/LOGIN`);
+      const userRecord = response.data.find(record => record.USRID === userId);
+      
+      if (userRecord) {
+        // Create a formatted user object with consistent property names
         const userData = {
           id: userRecord.USRID,
-          name: userRecord.Employee_Name,
-          department: userRecord.DEPARTMENT
+          name: userRecord.name || userRecord.Employee_Name || userRecord.NM || userId,
+          department: userRecord.DEPARTMENT || userRecord.department || ''
         };
         
-        // Store user info and token in localStorage
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('token', 'authenticated'); // Simple token for now
+        console.log('User authenticated:', userData);
         
-        // Show success message before redirect
+        // Store complete user info and token in localStorage
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('token', 'authenticated');
+        
+        // Show success message
         setLoginSuccess(true);
-        setError('');
         
         // Delay navigation to show success message
         setTimeout(() => {
           setIsAuthenticated(true);
           navigate('/');
-        }, 1500);
+        }, 1000);
       } else {
-        setError('Invalid User ID');
+        setError('Invalid User ID. Please try again.');
       }
     } catch (err) {
-      setError('Error validating user ID');
       console.error('Login error:', err);
+      setError('Server error. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,6 +77,7 @@ const Login = ({ setIsAuthenticated }) => {
               placeholder="Enter your User ID"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
+              disabled={isLoading || loginSuccess}
             />
           </div>
   
@@ -78,7 +92,13 @@ const Login = ({ setIsAuthenticated }) => {
           )}
   
           <div>
-            <button type="submit" disabled={loginSuccess}>Sign in</button>
+            <button 
+              type="submit" 
+              disabled={isLoading || loginSuccess}
+              className={isLoading ? 'loading' : ''}
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </button>
           </div>
         </form>
       </div>
