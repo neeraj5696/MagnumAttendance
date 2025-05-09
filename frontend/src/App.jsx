@@ -23,134 +23,275 @@ const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5
 console.log("API_BASE_URL:", API_BASE_URL);
 
 const Attendance = () => {
+  // =========== STATE MANAGEMENT ===========
+  // Core data states
   const [attendanceData, setAttendanceData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [selectedEmployee, setSelectedEmployee] = useState("-1");
-  const [selectedMonth, setSelectedMonth] = useState("Feb-25");
-  const [showMispunchesOnly, setShowMispunchesOnly] = useState(false);
-  const [isFiltered, setIsFiltered] = useState(false);
+  const [timeInputs, setTimeInputs] = useState({});
   const [statusInputs, setStatusInputs] = useState({});
   const [reasonInputs, setReasonInputs] = useState({});
+  const [buttonStatus, setButtonStatus] = useState({});
+  
+  // Saved records tracking
   const [savedRecords, setSavedRecords] = useState(() => {
-  const saved = localStorage.getItem("savedAttendanceRecords");
+    const saved = localStorage.getItem("savedAttendanceRecords");
     return saved ? JSON.parse(saved) : {};
   });
-  const [monthRanges, setMonthRanges] = useState([]);
+  
+  // User and auth state
   const [user, setUser] = useState(() => {
-  const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
+  
+  // UI states
   const [isLoading, setIsLoading] = useState(false);
-
-  // Time input states
-  const [timeInputs, setTimeInputs] = useState({});
+  const [selectedEmployee, setSelectedEmployee] = useState("-1");
+  const [showMispunchesOnly, setShowMispunchesOnly] = useState(false);
+  const [isFiltered, setIsFiltered] = useState(false);
   const [expandedRemarks, setExpandedRemarks] = useState({});
-  const MAX_CHARS = 40;
-
-  // Add popupRemarks state
   const [popupRemarks, setPopupRemarks] = useState({ show: false, index: null, value: '' });
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(12);
+  
+  // Date filtering
   const [dateRange, setDateRange] = useState([startOfMonth(new Date()), endOfMonth(new Date())]);
   const [startDate, endDate] = dateRange;
   const datePickerRef = useRef(null);
+  
+  // Month tracking
+  const [selectedMonth, setSelectedMonth] = useState("Feb-25");
+  const [monthRanges, setMonthRanges] = useState([]);
+  const [availableMonthRanges, setAvailableMonthRanges] = useState([]);
+  
+  // Constants
+  const MAX_CHARS = 40;
 
-  // Optimize the first useEffect to make sure we're not repeating logic
-  useEffect(() => {
-    if (!attendanceData || attendanceData.length === 0) return;
-
-    // Apply all filters (date + employee + mispunch) in a single function
-    let filtered = [...attendanceData];
-
-    // Date range filter (if date is selected)
-    if (dateRange[0]) {
-      filtered = filtered.filter(record => {
-        const recordDate = parseISO(record.PunchDate);
-        if (dateRange[1]) {
-          return isWithinInterval(recordDate, {
-            start: dateRange[0],
-            end: dateRange[1]
-          });
-        } else {
-          return isAfter(recordDate, dateRange[0]) || isEqual(recordDate, dateRange[0]);
-        }
-      });
-    }
-
-    // Employee filter
-    if (user) {
-      filtered = filtered.filter(record => record.USRID === user.id);
-    } else if (selectedEmployee !== "-1") {
-      filtered = filtered.filter(record => record.USRID === selectedEmployee);
-    }
-
-    // Mispunch filter
-    if (showMispunchesOnly) {
-      filtered = filtered.filter(record => isMispunch(record));
-    }
-
-    setFilteredData(filtered);
-
-    // Set isFiltered to true if any filter is active
-    const hasActiveFilter =
-      selectedEmployee !== "-1" ||
-      showMispunchesOnly ||
-      dateRange[0] !== null;
-
-    setIsFiltered(hasActiveFilter);
-
-  }, [dateRange, selectedEmployee, showMispunchesOnly, attendanceData, user]);
-
-  // Helper function to get time in HH:mm format or empty string
+  // =========== UTILITY FUNCTIONS ===========
+  // Get time value from various formats
   const getTimeValue = (timeStr) => {
     if (!timeStr || timeStr === "--") return "";
-    // If timeStr is already in HH:mm:ss, return HH:mm
-    if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr.substring(0, 5);
-    // If timeStr is in 'YYYY-MM-DD HH:mm:ss' format, extract time part
+    
+    // Handle HH:mm:ss format
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) {
+      return timeStr.substring(0, 5);
+    }
+    
+    // Handle YYYY-MM-DD HH:mm:ss format
     if (timeStr.includes(" ")) {
       const parts = timeStr.split(" ");
-      if (parts[1] && /^\d{2}:\d{2}:\d{2}$/.test(parts[1]))
+      if (parts[1] && /^\d{2}:\d{2}:\d{2}$/.test(parts[1])) {
         return parts[1].substring(0, 5);
+      }
     }
+    
+    // Handle HH:mm format
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+      return timeStr.substring(0, 5);
+    }
+    
+    // Extract any HH:MM pattern from other formats
+    const timeMatch = timeStr.match(/(\d{2}:\d{2})/);
+    if (timeMatch) {
+      return timeMatch[1];
+    }
+    
     return "";
   };
-
-  // Only initialize timeInputs if empty or filteredData length changes
-  useEffect(() => {
-    if (Object.keys(timeInputs).length !== filteredData.length) {
-      const initialTimeInputs = {};
-      filteredData.forEach((record, index) => {
-        initialTimeInputs[index] = {
-          inTime: getTimeValue(record.InTime),
-          outTime: getTimeValue(record.OutTime),
-          hours: record.Actual_Working_Hours || "00:00",
-        };
-      });
-      setTimeInputs(initialTimeInputs);
-    }
-  }, [filteredData]);
-
-  // Improve the isMispunch function to properly detect missing punch times
+  
+  // Initialize time inputs from device data
+  const initializeTimeFromDevice = (data) => {
+    const initialInputs = {};
+    
+    data.forEach((record, index) => {
+      // Try different patterns to extract time values
+      let inTime = "";
+      let outTime = "";
+      
+      if (record.InTime && record.InTime !== "--") {
+        // Try to find any time pattern in the string
+        const match = record.InTime.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
+        if (match) {
+          inTime = match[1].substring(0, 5);
+        }
+      }
+      
+      if (record.OutTime && record.OutTime !== "--") {
+        // Try to find any time pattern in the string
+        const match = record.OutTime.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
+        if (match) {
+          outTime = match[1].substring(0, 5);
+        }
+      }
+      
+      // Ensure the time values are properly formatted
+      initialInputs[index] = {
+        inTime: inTime,
+        outTime: outTime, 
+        hours: calculateWorkingHours(inTime, outTime)
+      };
+    });
+    
+    return initialInputs;
+  };
+  
+  // Check if a record has a missing punch
   const isMispunch = (record) => {
-    // First check for undefined or null values
     if (!record) return false;
-
-    // Check for InTime and OutTime properties
+    
     const missingInTime = !record.InTime || record.InTime === "" || record.InTime === "--";
     const missingOutTime = !record.OutTime || record.OutTime === "" || record.OutTime === "--";
-
-    // Also check FirstPunch and LastPunch in case the API returns these
-    const missingFirstPunch = record.FirstPunch && (record.FirstPunch === "" || record.FirstPunch === "--");
-    const missingLastPunch = record.LastPunch && (record.LastPunch === "" || record.LastPunch === "--");
-
-    return missingInTime || missingOutTime || missingFirstPunch || missingLastPunch;
+    
+    return missingInTime || missingOutTime;
+  };
+  
+  // Calculate working hours from in and out times
+  const calculateWorkingHours = (inTime, outTime) => {
+    if (!inTime || !outTime) {
+      return "00:00";
+    }
+    
+    const inDate = new Date(`1970-01-01T${inTime}:00`);
+    const outDate = new Date(`1970-01-01T${outTime}:00`);
+    const diffInMilliseconds = outDate - inDate;
+    
+    if (diffInMilliseconds < 0) {
+      return "00:00";
+    }
+    
+    const hours = Math.floor(diffInMilliseconds / 3600000);
+    const minutes = Math.floor((diffInMilliseconds % 3600000) / 60000);
+    const formattedHours = hours.toString().padStart(2, "0");
+    const formattedMinutes = minutes.toString().padStart(2, "0");
+    
+    return `${formattedHours}:${formattedMinutes}`;
   };
 
-  // Fix the handleMispunchFilterChange function to work directly with state
+  // Format datetime for SQL format
+  const formatDateTime = (date, time) => {
+    if (!time) return null;
+
+    // Ensure time is in HH:mm:ss format
+    const timeParts = time.split(":");
+    const formattedTime = timeParts.length === 2 ? `${time}:00` : time;
+
+    // Combine date and time into a Date object
+    const isoString = `${date}T${formattedTime}Z`;
+    const utcDate = new Date(isoString);
+
+    // Format back to 'YYYY-MM-DD HH:mm:ss.000'
+    const year = utcDate.getFullYear();
+    const month = String(utcDate.getMonth() + 1).padStart(2, "0");
+    const day = String(utcDate.getDate()).padStart(2, "0");
+    const hours = String(utcDate.getHours()).padStart(2, "0");
+    const minutes = String(utcDate.getMinutes()).padStart(2, "0");
+    const seconds = String(utcDate.getSeconds()).padStart(2, "0");
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.000`;
+  };
+  
+  // Get current SQL datetime
+  function getCurrentSQLDateTime() {
+    const now = new Date();
+    const currentDate = now.toISOString().split("T")[0];
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return formatDateTime(currentDate, `${hours}:${minutes}`);
+  }
+  
+  // Calculate row background style based on status
+  const getRowStyle = (record) => {
+    switch (record.Status) {
+      case "MIS PUNCH": return { backgroundColor: "rgba(210, 236, 17, 0.8)" };
+      case "HALF DAY": return { backgroundColor: "rgba(255, 193, 7, 0.2)" };
+      case "PRESENT": return { backgroundColor: "rgba(40, 167, 69, 0.2)" };
+      case "ABSENT": return { backgroundColor: "rgba(220, 53, 69, 0.2)" };
+      default: return {};
+    }
+  };
+
+  // =========== EVENT HANDLERS ===========
+  // Handle time input changes
+  const handleTimeChange = (index, type, value) => {
+    setTimeInputs(prev => {
+      const record = filteredData[index];
+      const currentRow = prev[index] || {
+        inTime: getTimeValue(record?.InTime),
+        outTime: getTimeValue(record?.OutTime),
+        hours: record?.Actual_Working_Hours || "00:00",
+      };
+      
+      const updatedRow = {
+        ...currentRow,
+        [type]: value,
+      };
+
+      if (type === "inTime" || type === "outTime") {
+        updatedRow.hours = calculateWorkingHours(
+          type === "inTime" ? value : currentRow.inTime,
+          type === "outTime" ? value : currentRow.outTime
+        );
+      }
+
+      return {
+        ...prev,
+        [index]: updatedRow,
+      };
+    });
+  };
+  
+  // Handle status changes
+  const handleStatusChange = (index, value) => {
+    setStatusInputs(prev => ({
+      ...prev,
+      [index]: value,
+    }));
+  };
+  
+  // Handle reason input changes
+  const handleReasonChange = (index, value) => {
+    if (value.length <= MAX_CHARS) {
+      setReasonInputs(prev => ({
+        ...prev,
+        [index]: value,
+      }));
+    }
+  };
+  
+  // Handle remarks click to open popup
+  const handleRemarksClick = (index, currentValue) => {
+    setPopupRemarks({
+      show: true,
+      index,
+      value: currentValue || ''
+    });
+  };
+  
+  // Handle popup close
+  const handlePopupClose = () => {
+    setPopupRemarks({ show: false, index: null, value: '' });
+  };
+  
+  // Handle popup save
+  const handlePopupSave = () => {
+    if (popupRemarks.index !== null) {
+      handleReasonChange(popupRemarks.index, popupRemarks.value);
+    }
+    handlePopupClose();
+  };
+  
+  // Datepicker click handler
+  const handleDatePickerClick = () => {
+    if (datePickerRef.current) {
+      datePickerRef.current.setOpen(true);
+    }
+  };
+  
+  // Handle mispunch filter change
   const handleMispunchFilterChange = (e) => {
     const isChecked = e.target.checked;
     setShowMispunchesOnly(isChecked);
     
-    // Get currently filtered data based on date range and employee
     let baseData = [...attendanceData];
     
     // Apply date filter
@@ -168,66 +309,153 @@ const Attendance = () => {
       });
     }
     
-    // Apply employee filter
-    if (user) {
-      baseData = baseData.filter(record => record.USRID === user.id);
-    } else if (selectedEmployee !== "-1") {
-      baseData = baseData.filter(record => record.USRID === selectedEmployee);
-    }
-    
     // Apply mispunches filter if checked
     if (isChecked) {
       baseData = baseData.filter(record => isMispunch(record));
     }
     
     setFilteredData(baseData);
-    setIsFiltered(isChecked || selectedEmployee !== "-1" || dateRange[0] !== null);
+    setIsFiltered(isChecked || dateRange[0] !== null);
   };
+  
+  // Filter handler
+  const handleFilter = () => {
+    if (!attendanceData || attendanceData.length === 0) return;
+    
+    let filtered = [...attendanceData];
 
-  // Add a function to fetch button status
-  const fetchButtonStatus = async (userId, date) => {
-    try {
-      console.log(`Fetching button status for ${userId} - ${date}`);
-      const response = await axios.get(`${API_BASE_URL}/api/check-button-status`, {
-        params: { userId, date }
+    // Date range filter
+    if (dateRange[0]) {
+      filtered = filtered.filter(record => {
+        const recordDate = parseISO(record.PunchDate);
+        if (dateRange[1]) {
+          return isWithinInterval(recordDate, {
+            start: dateRange[0],
+            end: dateRange[1]
+          });
+        } else {
+          return isAfter(recordDate, dateRange[0]) || isEqual(recordDate, dateRange[0]);
+        }
       });
+    }
 
-      // Create a unique key for this record
-      const recordKey = `${userId}_${date}`;
+    // Mispunch filter
+    if (showMispunchesOnly) {
+      filtered = filtered.filter(record => isMispunch(record));
+    }
 
-      // Log the response for debugging
-      console.log(`Button status response for ${recordKey}:`, response.data);
-
-      // Update the buttonStatus state
-      setButtonStatus(prev => ({
-        ...prev,
-        [recordKey]: response.data
-      }));
-
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching button status:", error);
-
-      // If it's an axios error with a response, log more details
-      if (error.response) {
-        console.error("Error response data:", error.response.data);
-        console.error("Error response status:", error.response.status);
+    setFilteredData(filtered);
+    setIsFiltered(true);
+  };
+  
+  // Reset filters
+  const handleReset = () => {
+    setShowMispunchesOnly(false);
+    
+    // Reset to current month's data
+    if (availableMonthRanges.length > 0) {
+      const currentDate = new Date();
+      let currentMonth = availableMonthRanges[0]; // Default to first month
+      
+      // Try to find current month in available ranges
+      for (const range of availableMonthRanges) {
+        if (currentDate >= range.start && currentDate <= range.end) {
+          currentMonth = range;
+          break;
+        }
       }
-
-      // Return default values that won't disable the buttons
-      return {
-        saveButtonDisabled: false,
-        requestApprovalDisabled: false,
-        error: error.message
-      };
+      
+      // Set date range to current month
+      setDateRange([currentMonth.start, currentMonth.end]);
+      
+      // Filter data for the current month
+      const filtered = attendanceData.filter(record => {
+        const recordDate = parseISO(record.PunchDate);
+        return isWithinInterval(recordDate, {
+          start: currentMonth.start,
+          end: currentMonth.end
+        });
+      });
+      
+      setFilteredData(filtered);
+    } else {
+      // If no months available, just show all data
+      setFilteredData(attendanceData);
+    }
+    
+    setIsFiltered(false);
+  };
+  
+  // Reset time inputs to match device data
+  const resetTimeToDeviceData = (index) => {
+    const record = filteredData[index];
+    if (record) {
+      // Try different patterns to extract time values
+      let inTime = "";
+      let outTime = "";
+      
+      if (record.InTime && record.InTime !== "--") {
+        // Try to find any time pattern in the string
+        const match = record.InTime.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
+        if (match) {
+          inTime = match[1].substring(0, 5);
+        }
+      }
+      
+      if (record.OutTime && record.OutTime !== "--") {
+        // Try to find any time pattern in the string
+        const match = record.OutTime.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
+        if (match) {
+          outTime = match[1].substring(0, 5);
+        }
+      }
+      
+      console.log(`Resetting times for index ${index}:`, { 
+        deviceIn: record.InTime, 
+        deviceOut: record.OutTime,
+        extractedIn: inTime,
+        extractedOut: outTime
+      });
+      
+      setTimeInputs(prev => ({
+        ...prev,
+        [index]: {
+          inTime: inTime,
+          outTime: outTime,
+          hours: calculateWorkingHours(inTime, outTime)
+        }
+      }));
     }
   };
-
-  // Simplified and optimized fetchAttendanceData function
+  
+  // Reset all time inputs to match device data
+  const resetAllTimeInputs = () => {
+    console.log("Resetting all time inputs to match device data");
+    const initialTimeInputs = initializeTimeFromDevice(filteredData);
+    setTimeInputs(initialTimeInputs);
+  };
+  
+  // Pagination handler
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top of table when changing pages
+    const tableScrollContainer = document.querySelector('.table-scroll-container');
+    if (tableScrollContainer) {
+      tableScrollContainer.scrollTop = 0;
+    }
+  };
+  
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
+  
+  // =========== DATA FETCHING ===========
+  // Fetch attendance data
   const fetchAttendanceData = async () => {
     setIsLoading(true);
     try {
-      // Only proceed if we have a user
       if (!user || !user.id) {
         console.log("No user found, cannot fetch attendance data");
         setFilteredData([]);
@@ -236,9 +464,6 @@ const Attendance = () => {
         return;
       }
 
-      console.log(`Fetching attendance data for user: ${user.id}`);
-      
-      // Pass the user ID as a query parameter to filter on the server side
       const response = await axios.get(`${API_BASE_URL}/api/attendance`, {
         params: { userId: user.id },
         headers: {
@@ -251,8 +476,6 @@ const Attendance = () => {
           ...record,
           formattedDate: format(parseISO(record.PunchDate), 'yyyy-MM-dd')
         }));
-        
-        console.log(`Loaded ${formattedData.length} records for user ${user.id}`);
         
         setAttendanceData(formattedData);
         
@@ -276,16 +499,31 @@ const Attendance = () => {
         
         setAvailableMonthRanges(ranges);
         
-        // Set default date range to most recent month and filter data
+        // Find current month range to set as default
         if (ranges.length > 0) {
-          const mostRecentMonth = ranges[ranges.length - 1];
-          setDateRange([mostRecentMonth.start, mostRecentMonth.end]);
+          const currentDate = new Date();
+          const currentMonthStr = format(currentDate, 'yyyy-MM');
           
+          // Find the current month in available ranges, or default to most recent
+          let defaultMonth = ranges[ranges.length - 1]; // Most recent as fallback
+          
+          for (const range of ranges) {
+            const rangeMonthStr = format(range.start, 'yyyy-MM');
+            if (rangeMonthStr === currentMonthStr) {
+              defaultMonth = range;
+              break;
+            }
+          }
+          
+          // Set date range to current month
+          setDateRange([defaultMonth.start, defaultMonth.end]);
+          
+          // Filter data for the selected month
           const filteredForMonth = formattedData.filter(record => {
             const recordDate = parseISO(record.PunchDate);
             return isWithinInterval(recordDate, {
-              start: mostRecentMonth.start,
-              end: mostRecentMonth.end
+              start: defaultMonth.start,
+              end: defaultMonth.end
             });
           });
           
@@ -294,7 +532,6 @@ const Attendance = () => {
           setFilteredData(formattedData);
         }
       } else {
-        console.log("No attendance data found for user");
         setFilteredData([]);
         setAttendanceData([]);
       }
@@ -306,209 +543,75 @@ const Attendance = () => {
       setIsLoading(false);
     }
   };
+  
+  // Fetch button status
+  const fetchButtonStatus = async (userId, date) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/check-button-status`, {
+        params: { userId, date }
+      });
 
-  /// side efect of fetchattendancedata
+      // Create a unique key for this record
+      const recordKey = `${userId}_${date}`;
+
+      // Update the buttonStatus state
+      setButtonStatus(prev => ({
+        ...prev,
+        [recordKey]: response.data
+      }));
+
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching button status:", error);
+
+      // Return default values that won't disable the buttons
+      return {
+        saveButtonDisabled: false,
+        requestApprovalDisabled: false,
+        error: error.message
+      };
+    }
+  };
+  
+  // =========== EFFECTS ===========
+  // Fetch attendance data when user changes
   useEffect(() => {
     if (user) {
       fetchAttendanceData();
     }
   }, [user]);
-
-  // Build salary periods when data is fetched
+  
+  // Initialize time inputs when filtered data changes
   useEffect(() => {
-    if (!attendanceData || attendanceData.length === 0) return;
-
-    const punchDates = attendanceData
-      .map((entry) => parseISO(entry.PunchDate))
-      .filter((date) => !isNaN(date));
-
-    if (punchDates.length === 0) return;
-
-    const minDate = format(new Date(Math.min(...punchDates)), "yyyy-MM-dd");
-    const maxDate = format(new Date(Math.max(...punchDates)), "yyyy-MM-dd");
-
-    const ranges = generateSalaryPeriods(minDate, maxDate);
-    setMonthRanges(ranges);
-
-    if (ranges.length > 0) {
-      setSelectedMonth(ranges[0].value);
+    if (filteredData.length > 0) {
+      const initialTimeInputs = initializeTimeFromDevice(filteredData);
+      setTimeInputs(initialTimeInputs);
+      
+      // Log to check if time data is being properly initialized
+      console.log("Time inputs initialized:", initialTimeInputs);
     }
-  }, [attendanceData]);
-
-  // Filter data based on selected month period
+  }, [filteredData]);
+  
+  // Reset pagination when filtered data changes
   useEffect(() => {
-    if (!selectedMonth || monthRanges.length === 0) return;
-
-    const selectedPeriod = monthRanges.find(
-      (period) => period.value === selectedMonth
-    );
-
-    if (!selectedPeriod) return;
-
-    const { startDate, endDate } = selectedPeriod;
-
-    const filtered = attendanceData.filter((entry) => {
-      const punchDate = parseISO(entry.PunchDate);
-      return (
-        (isEqual(punchDate, startDate) || isAfter(punchDate, startDate)) &&
-        (isEqual(punchDate, endDate) || isBefore(punchDate, endDate))
-      );
-    });
-
-    setFilteredData(filtered);
-  }, [selectedMonth, monthRanges, attendanceData]);
-
-  function generateSalaryPeriods(minDateStr, maxDateStr) {
-    const periods = [];
-    let current = parseISO(minDateStr);
-    current.setDate(17);
-    if (parseISO(minDateStr).getDate() > 17) {
-      current = addMonths(current, 1);
+    setCurrentPage(1);
+  }, [filteredData]);
+  
+  // Add effect to refresh time inputs when date range changes
+  useEffect(() => {
+    if (filteredData.length > 0) {
+      setTimeInputs(initializeTimeFromDevice(filteredData));
     }
+  }, [dateRange]);
 
-    const maxDate = parseISO(maxDateStr);
-
-    while (isBefore(current, addMonths(maxDate, 1))) {
-      const start = new Date(current);
-      const end = addMonths(start, 1);
-      end.setDate(16);
-
-      periods.push({
-        label: `${format(start, "MMMM d")} - ${format(end, "MMMM d")}`,
-        value: format(start, "yyyy-MM-dd"),
-        startDate: start,
-        endDate: end,
-      });
-
-      current = addMonths(current, 1);
-    }
-
-    return periods;
-  }
-
-  const calculateWorkingHours = (inTime, outTime) => {
-    if (!inTime || !outTime) {
-      return "00:00";
-    }
-    const inDate = new Date(`1970-01-01T${inTime}:00`);
-    const outDate = new Date(`1970-01-01T${outTime}:00`);
-    const diffInMilliseconds = outDate - inDate;
-    if (diffInMilliseconds < 0) {
-      return "00:00";
-    }
-    const hours = Math.floor(diffInMilliseconds / 3600000);
-    const minutes = Math.floor((diffInMilliseconds % 3600000) / 60000);
-    const formattedHours = hours.toString().padStart(2, "0");
-    const formattedMinutes = minutes.toString().padStart(2, "0");
-    return `${formattedHours}:${formattedMinutes}`;
-  };
-
-  const handleTimeChange = (index, type, value) => {
-    setTimeInputs((prev) => {
-      const currentRow = prev[index] || {
-        inTime:
-          filteredData[index]?.InTime?.split(" ")[1]?.substring(0, 5) || "",
-        outTime:
-          filteredData[index]?.OutTime?.split(" ")[1]?.substring(0, 5) || "",
-        hours: filteredData[index]?.Actual_Working_Hours || "00:00",
-      };
-      const updatedRow = {
-        ...currentRow,
-        [type]: value,
-      };
-
-      if (type === "inTime" || type === "outTime") {
-        updatedRow.hours = calculateWorkingHours(
-          type === "inTime" ? value : currentRow.inTime,
-          type === "outTime" ? value : currentRow.outTime
-        );
-      }
-
-      return {
-        ...prev,
-        [index]: updatedRow,
-      };
-    });
-  };
-
-  const handleStatusChange = (index, value) => {
-    setStatusInputs((prev) => ({
-      ...prev,
-      [index]: value,
-    }));
-  };
-
-  // Add reason options
-
-  const handleReasonChange = (index, value) => {
-    if (value.length <= MAX_CHARS) {
-      setReasonInputs((prev) => ({
-        ...prev,
-        [index]: value,
-      }));
-    }
-  };
-
-  const toggleExpand = (index) => {
-    setExpandedRemarks((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-  };
-
-  function getCurrentSQLDateTime() {
-    const now = new Date();
-
-    // Format current date as 'YYYY-MM-DD'
-    const currentDate = now.toISOString().split("T")[0]; // e.g. '2025-05-05'
-
-    // Format current time as 'HH:mm'
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const currentTime = `${hours}:${minutes}`; // e.g. '14:30'
-
-    // Call your function
-    const formatted = formatDateTime(currentDate, currentTime);
-
-    return formatted; // Output: '2025-05-05 20:00:00.000' (if IST)
-  }
-
-  const formatDateTime = (date, time) => {
-    if (!time) return null;
-
-    // Ensure time is in HH:mm:ss format
-    const timeParts = time.split(":");
-    const formattedTime = timeParts.length === 2 ? `${time}:00` : time;
-
-    // Combine date and time into a Date object (UTC assumed)
-    const isoString = `${date}T${formattedTime}Z`; // Treat as UTC
-    const utcDate = new Date(isoString);
-
-    // Add 5 hours and 30 minutes (IST offset)
-    const istOffsetMs = (5 * 60 + 30) * 60 * 1000;
-    const istDate = new Date(utcDate.getTime());
-
-    // Format back to 'YYYY-MM-DD HH:mm:ss.000'
-    const year = istDate.getFullYear();
-    const month = String(istDate.getMonth() + 1).padStart(2, "0");
-    const day = String(istDate.getDate()).padStart(2, "0");
-    const hours = String(istDate.getHours()).padStart(2, "0");
-    const minutes = String(istDate.getMinutes()).padStart(2, "0");
-    const seconds = String(istDate.getSeconds()).padStart(2, "0");
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.000`;
-  };
-
-  const sqlDateTime = getCurrentSQLDateTime();
-
-  //SAVING ROUTE
+  // =========== CORE SAVE FUNCTIONALITY (KEPT UNCHANGED) ===========
   const HandleSave = async (index) => {
     const record = filteredData[index];
     const timeInput = timeInputs[index] || {};
     const statusInput = statusInputs[index] || record.Status;
     const reasonInput = reasonInputs[index] || "";
     const DEPARTMENT = record.DEPARTMENT;
-    const EmpDate = sqlDateTime;
+    const EmpDate = getCurrentSQLDateTime();
 
     // Check if required fields are present
     if (!record.USRID || !record.PunchDate || !timeInput.inTime || !timeInput.outTime) {
@@ -586,27 +689,21 @@ const Attendance = () => {
     }
   };
 
- 
-
+  // =========== APPROVAL FUNCTIONS ===========
   const HandleApprove = async (index) => {
     const record = filteredData[index];
     const approveData = {
-      
       UserID: record.USRID,
       Date: record.PunchDate,
       EmpReqShow: "No",
       ManagerApproval: "Pending",
-
     };
-
-    console.log("Approving attendance with data:", approveData);
 
     try {
       const response = await axios.post(
         `${API_BASE_URL}/api/approve-attendance`,
         approveData
       );
-      console.log("Approve response:", response.data);
       alert("Attendance approved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
@@ -622,11 +719,8 @@ const Attendance = () => {
   };
 
   const HandleApproveAll = async () => {
-    console.log("Approving all attendance records");
-
     try {
       const response = await axios.post(`${API_BASE_URL}/api/approve-all`);
-      console.log("Approve all response:", response.data);
       alert("All attendance records approved successfully!");
       fetchAttendanceData(); // Refresh data
     } catch (error) {
@@ -641,70 +735,18 @@ const Attendance = () => {
     }
   };
 
-  // Update handleReset to use the applyFilters function with reset parameters
-  const handleReset = () => {
-    setSelectedEmployee("-1");
-    setShowMispunchesOnly(false);
-    
-    // Reset to current month's data
-    if (availableMonthRanges.length > 0) {
-      const currentDate = new Date();
-      let currentMonth = availableMonthRanges[0]; // Default to first month
-      
-      // Try to find current month in available ranges
-      for (const range of availableMonthRanges) {
-        if (currentDate >= range.start && currentDate <= range.end) {
-          currentMonth = range;
-          break;
-        }
-      }
-      
-      // Set date range to current month
-      setDateRange([currentMonth.start, currentMonth.end]);
-      
-      // Filter data for the current month
-      const filtered = attendanceData.filter(record => {
-        const recordDate = parseISO(record.PunchDate);
-        return isWithinInterval(recordDate, {
-          start: currentMonth.start,
-          end: currentMonth.end
-        });
-      });
-      
-      setFilteredData(filtered);
-    } else {
-      // If no months available, just show all data
-      setFilteredData(attendanceData);
-    }
-    
-    setIsFiltered(false);
-  };
+  // =========== PAGINATION LOGIC ===========
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  // Function to calculate row background color based on status
-  const getRowStyle = (record) => {
-    switch (record.Status) {
-      case "MIS PUNCH":
-        return { backgroundColor: "rgba(210, 236, 17, 0.8)" };  // Dark gray
-      case "HALF DAY":
-        return { backgroundColor: "rgba(255, 193, 7, 0.2)" };  // Orange
-      case "PRESENT":
-        return { backgroundColor: "rgba(40, 167, 69, 0.2)" };  // Green
-      case "ABSENT":
-        return { backgroundColor: "rgba(220, 53, 69, 0.2)" };    // Darker gray
-      default:
-        return {};
-    }
-  };
-
-
-  // Get unique employees for dropdown
+  // Render helpers
   const getUniqueEmployees = () => {
-    if (!attendanceData || attendanceData.length === 0) {
-      return [];
-    }
+    if (!attendanceData || attendanceData.length === 0) return [];
 
     const uniqueEmployeesMap = new Map();
-
     attendanceData.forEach((record) => {
       if (record.USRID && record.Employee_Name) {
         if (!uniqueEmployeesMap.has(record.USRID)) {
@@ -719,174 +761,49 @@ const Attendance = () => {
     return Array.from(uniqueEmployeesMap.values());
   };
 
-  // Get the unique employees list
   const uniqueEmployees = getUniqueEmployees();
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-  };
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-
-  // Add pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    // Scroll to top of table when changing pages
-    const tableContainer = document.querySelector('.table-container');
-    if (tableContainer) {
-      tableContainer.scrollTop = 0;
-    }
-  };
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filteredData]);
-
-  // Add popup-related functions
-  const handleRemarksClick = (index, currentValue) => {
-    setPopupRemarks({
-      show: true,
-      index,
-      value: currentValue || ''
-    });
-  };
-
-  const handlePopupClose = () => {
-    setPopupRemarks({ show: false, index: null, value: '' });
-  };
-
-  const handlePopupSave = () => {
-    if (popupRemarks.index !== null) {
-      handleReasonChange(popupRemarks.index, popupRemarks.value);
-    }
-    handlePopupClose();
-  };
-
-  const [buttonStatus, setButtonStatus] = useState({}); // Add state for button status
-
-  const handleDatePickerClick = () => {
-    if (datePickerRef.current) {
-      datePickerRef.current.setOpen(true);
-    }
-  };
-
-  // Add state for available month ranges
-  const [availableMonthRanges, setAvailableMonthRanges] = useState([]);
-
-  // Update the helper function to apply filters when a month is selected
-  const selectMonthRange = (e) => {
-    const monthIndex = parseInt(e.target.value);
-    if (isNaN(monthIndex) || monthIndex < 0 || monthIndex >= availableMonthRanges.length) return;
+  // Force reset all time inputs to ensure device data copies to regularized columns
+  const forceResetAllTimeInputs = () => {
+    console.log("Force resetting all time inputs with direct extraction");
+    const manualInputs = {};
     
-    const selectedRange = availableMonthRanges[monthIndex];
-    const newDateRange = [selectedRange.start, selectedRange.end];
-    
-    // Set the date range
-    setDateRange(newDateRange);
-    
-    // Filter data for selected month
-    let filtered = attendanceData.filter(record => {
-      const recordDate = parseISO(record.PunchDate);
-      return isWithinInterval(recordDate, {
-        start: selectedRange.start,
-        end: selectedRange.end
-      });
-    });
-    
-    // Apply other active filters
-    if (user) {
-      filtered = filtered.filter(record => record.USRID === user.id);
-    } else if (selectedEmployee !== "-1") {
-      filtered = filtered.filter(record => record.USRID === selectedEmployee);
-    }
-    
-    if (showMispunchesOnly) {
-      filtered = filtered.filter(record => isMispunch(record));
-    }
-    
-    setFilteredData(filtered);
-    setIsFiltered(true);
-  };
-
-  // Make sure the filter functions integrate both date range and mispunches filter
-  const applyFilters = (data, options = {}) => {
-    const {
-      employee = selectedEmployee,
-      dateRange = [startDate, endDate],
-      showMispunches = showMispunchesOnly
-    } = options;
-
-    let filtered = [...data];
-
-    // Apply date range filter if both dates are set
-    if (dateRange[0] && dateRange[1]) {
-      filtered = filtered.filter(record => {
-        const recordDate = parseISO(record.PunchDate);
-        return isWithinInterval(recordDate, {
-          start: dateRange[0],
-          end: dateRange[1]
-        });
-      });
-    }
-
-    // Apply employee filter if selected
-    if (employee !== "-1" && employee) {
-      filtered = filtered.filter(record => record.USRID === employee);
-    }
-
-    // Apply mispunches filter if enabled
-    if (showMispunches) {
-      filtered = filtered.filter(record => isMispunch(record));
-    }
-
-    return filtered;
-  };
-
-  // Add the handleFilter function back, but simplified to use the existing state
-  const handleFilter = () => {
-    if (!attendanceData || attendanceData.length === 0) return;
-
-    // Simply trigger a filtering based on current filter state values
-    // This is just a manual trigger for the same filtering that useEffect handles
-    let filtered = [...attendanceData];
-
-    // Date range filter
-    if (dateRange[0]) {
-      filtered = filtered.filter(record => {
-        const recordDate = parseISO(record.PunchDate);
-        if (dateRange[1]) {
-          return isWithinInterval(recordDate, {
-            start: dateRange[0],
-            end: dateRange[1]
-          });
-        } else {
-          return isAfter(recordDate, dateRange[0]) || isEqual(recordDate, dateRange[0]);
+    filteredData.forEach((record, index) => {
+      // Try different patterns to extract time values
+      let inTime = "";
+      let outTime = "";
+      
+      if (record.InTime && record.InTime !== "--") {
+        // Try to find any time pattern in the string
+        const match = record.InTime.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
+        if (match) {
+          inTime = match[1].substring(0, 5);
         }
+      }
+      
+      if (record.OutTime && record.OutTime !== "--") {
+        // Try to find any time pattern in the string
+        const match = record.OutTime.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
+        if (match) {
+          outTime = match[1].substring(0, 5);
+        }
+      }
+      
+      console.log(`Index ${index}:`, { 
+        rawIn: record.InTime, 
+        rawOut: record.OutTime,
+        extractedIn: inTime,
+        extractedOut: outTime
       });
-    }
-
-    // Employee filter
-    if (user) {
-      filtered = filtered.filter(record => record.USRID === user.id);
-    } else if (selectedEmployee !== "-1") {
-      filtered = filtered.filter(record => record.USRID === selectedEmployee);
-    }
-
-    // Mispunch filter
-    if (showMispunchesOnly) {
-      filtered = filtered.filter(record => isMispunch(record));
-    }
-
-    setFilteredData(filtered);
-    setIsFiltered(true);
+      
+      manualInputs[index] = {
+        inTime,
+        outTime,
+        hours: calculateWorkingHours(inTime, outTime)
+      };
+    });
+    
+    setTimeInputs(manualInputs);
   };
 
   return (
@@ -894,9 +811,14 @@ const Attendance = () => {
       <header className="attendance-header">
         <div className="header-content">
           <h1>Regularize Attendance</h1>
-          <button className="logout-btn" onClick={handleLogout}>
-            <FaSignOutAlt /> Logout
-          </button>
+          <div className="header-actions">
+            <button className="reset-all-btn" onClick={forceResetAllTimeInputs} title="Reset all regularized times to match device data">
+              <FaUndo /> Reset All Times
+            </button>
+            <button className="logout-btn" onClick={handleLogout}>
+              <FaSignOutAlt /> Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -908,29 +830,13 @@ const Attendance = () => {
 
       <div className="filters-section">
         <div className="filter-wrapper">
-          <div className="filter-header">
-            <h3><FaFilter /> Filter Options</h3>
-            <button className="reset-btn action-button" onClick={handleReset}>
-              <FaUndo /> Reset
-            </button>
-          </div>
-          
           <div className="filter-grid">
             <div className="filter-item employee-select">
               <label>Manager Name</label>
-              <div className="select-container">
-                <select
-                  value={selectedEmployee}
-                  onChange={(e) => setSelectedEmployee(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="-1">All Managers</option>
-                  {uniqueEmployees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="manager-name-display">
+                {user && filteredData.length > 0 && filteredData[0].Manager_Name ? 
+                  filteredData[0].Manager_Name : 
+                  "No manager assigned"}
               </div>
             </div>
             
@@ -956,6 +862,23 @@ const Attendance = () => {
                     start: range.start,
                     end: range.end
                   }))}
+                  popperClassName="calendar-popper"
+                  popperPlacement="bottom-start"
+                  popperModifiers={[
+                    {
+                      name: "offset",
+                      options: {
+                        offset: [0, 5]
+                      }
+                    },
+                    {
+                      name: "preventOverflow",
+                      options: {
+                        rootBoundary: "viewport",
+                        padding: 8
+                      }
+                    }
+                  ]}
                 />
               </div>
             </div>
@@ -977,9 +900,14 @@ const Attendance = () => {
             </div>
             
             <div className="filter-actions">
-              <label>&nbsp;</label>
               <button className="filter-btn action-button" onClick={handleFilter}>
                 <FaFilter /> Apply
+              </button>
+            </div>
+            
+            <div className="filter-header">
+              <button className="reset-btn action-button" onClick={handleReset}>
+                <FaUndo /> Reset
               </button>
             </div>
           </div>
@@ -987,164 +915,158 @@ const Attendance = () => {
       </div>
 
       <div className="table-container">
-        <table className="attendance-table">
-          <thead>
-            <tr>
-             
-              <th colSpan="7">Devices</th>
-              <th colSpan="7">Regularized</th>
-             
-            </tr>
-            <tr>
-              <th width="2%">Select</th>
-              <th width="7%">Poornata ID</th>
-              <th width="9%">Name</th>
-              <th width="7%">Department</th>
-              <th width="5%">Date</th>
-              <th width="5%">IN</th>
-              <th width="5%">OUT</th>
-              <th width="4%">Hours</th>
-              <th className="settimeE" width="6%">IN</th>
-              <th className="settimeE" width="6%">OUT</th>
-              <th width="5%">Hours</th>
-              <th width="7%">Status</th>
-              <th width="7%">Remarks</th>
-              <th width="10%">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.map((record, index) => (
-              <tr key={index} style={getRowStyle(record)}>
-                <td>
-                  <input
-                    type="checkbox"
-                    className="row-checkbox"
-                  />
-                </td>
-                <td>{record.USRID}</td>
-                <td>{record.Employee_Name}</td>
-                <td>{record.DEPARTMENT}</td>
-                <td>{record.PunchDate}</td>
-                <td>{record.InTime || "--"}</td>
-                <td>{record.OutTime || "--"}</td>
-                <td>{record.Actual_Working_Hours || "00:00"}</td>
-                <td className="settime">
-                  <input
-                    type="time"
-                    value={
-                      timeInputs[index]?.inTime !== undefined &&
-                        timeInputs[index]?.inTime !== ""
-                        ? timeInputs[index].inTime
-                        : getTimeValue(record.InTime)
-                    }
-                    onChange={(e) =>
-                      handleTimeChange(index, "inTime", e.target.value)
-                    }
-                    className="time-input"
-                  />
-                </td>
-                <td className="settime">
-                  <input
-                    type="time"
-                    value={
-                      timeInputs[index]?.outTime !== undefined &&
-                        timeInputs[index]?.outTime !== ""
-                        ? timeInputs[index].outTime
-                        : getTimeValue(record.OutTime)
-                    }
-                    onChange={(e) =>
-                      handleTimeChange(index, "outTime", e.target.value)
-                    }
-                    className="time-input"
-                  />
-                </td>
-                <td>
-                  {calculateWorkingHours(
-                    timeInputs[index]?.inTime !== undefined &&
-                      timeInputs[index]?.inTime !== ""
-                      ? timeInputs[index].inTime
-                      : getTimeValue(record.InTime),
-                    timeInputs[index]?.outTime !== undefined &&
-                      timeInputs[index]?.outTime !== ""
-                      ? timeInputs[index].outTime
-                      : getTimeValue(record.OutTime)
-                  )}
-                </td>
-                <td>
-                  <select>
-                    <option value={record.Status} selected>
-                      {record.Status}{" "}
-                    </option>
-                    {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
-                      .filter((status) => status !== record.Status)
-                      .map((status) => (
-                        <option key={status} value={status}>
-                          {status}{" "}
-                        </option>
-                      ))}
-                  </select>
-                </td>
-                <td>
-                  {record.Status === "PRESENT" ? (
-                    <div className="no-action-container">
-                      <span className="no-action">No Action Needed</span>
-                    </div>
-                  ) : (
-                    <div className="remarks-container">
-                      <div
-                        className="reason-input"
-                        onClick={() => handleRemarksClick(index, reasonInputs[index])}
+        <div className="table-scroll-container">
+          <table className="attendance-table">
+            <thead>
+              <tr>
+                <th colSpan="7" className="device-header">Devices</th>
+                <th colSpan="7" className="regularized-header">Regularized</th>
+              </tr>
+              <tr>
+                <th className="col-select">Sel</th>
+                <th className="col-id">ID</th>
+                <th className="col-name">Name</th>
+                <th className="col-department">Dept</th>
+                <th className="col-date">Date</th>
+                <th className="col-in">IN</th>
+                <th className="col-out">OUT</th>
+                <th className="col-hours">Hours</th>
+                <th className="col-reg-in">Reg IN</th>
+                <th className="col-reg-out">Reg OUT</th>
+                <th className="col-reg-hours">Hours</th>
+                <th className="col-status">Status</th>
+                <th className="col-remarks">Remarks</th>
+                <th className="col-action">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentItems.map((record, index) => (
+                <tr key={index} style={getRowStyle(record)}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      className="row-checkbox"
+                    />
+                  </td>
+                  <td>{record.USRID}</td>
+                  <td>{record.Employee_Name}</td>
+                  <td>{record.DEPARTMENT}</td>
+                  <td>{record.PunchDate}</td>
+                  <td>{record.InTime || "--"}</td>
+                  <td>{record.OutTime || "--"}</td>
+                  <td>{record.Actual_Working_Hours || "00:00"}</td>
+                  <td className="settime">
+                    <div className="time-input-container">
+                      <input
+                        type="time"
+                        value={timeInputs[index]?.inTime || ""}
+                        onChange={(e) =>
+                          handleTimeChange(index, "inTime", e.target.value)
+                        }
+                        className="time-input"
+                      />
+                      <button 
+                        className="reset-time-btn" 
+                        title="Reset to device time"
+                        onClick={() => resetTimeToDeviceData(index)}
                       >
-                        {reasonInputs[index] || "Click to add remarks"}
-                      </div>
+                        <FaUndo className="reset-icon" />
+                      </button>
                     </div>
-                  )}
+                  </td>
+                  <td className="settime">
+                    <div className="time-input-container">
+                      <input
+                        type="time"
+                        value={timeInputs[index]?.outTime || ""}
+                        onChange={(e) =>
+                          handleTimeChange(index, "outTime", e.target.value)
+                        }
+                        className="time-input"
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    {calculateWorkingHours(
+                      timeInputs[index]?.inTime || "",
+                      timeInputs[index]?.outTime || ""
+                    )}
+                  </td>
+                  <td>
+                    <select
+                      value={statusInputs[index] || record.Status}
+                      onChange={(e) => handleStatusChange(index, e.target.value)}
+                    >
+                      <option value={record.Status}>{record.Status}</option>
+                      {["ABSENT", "PRESENT", "HALF DAY", "ON DUTY"]
+                        .filter((status) => status !== record.Status)
+                        .map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                    </select>
+                  </td>
+                  <td>
+                    {record.Status === "PRESENT" ? (
+                      <div className="no-action-container">
+                        <span className="no-action">No Action Needed</span>
+                      </div>
+                    ) : (
+                      <div className="remarks-container">
+                        <div
+                          className="reason-input"
+                          onClick={() => handleRemarksClick(index, reasonInputs[index])}
+                        >
+                          {reasonInputs[index] || "Click to add remarks"}
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="action-buttons">
+                    <button
+                      onClick={() => HandleSave(index)}
+                      title="Save"
+                      disabled={
+                        record.Status === "PRESENT" ||
+                        savedRecords[`${record.USRID}_${record.PunchDate}`] ||
+                        buttonStatus[`${record.USRID}_${record.PunchDate}`]?.saveButtonDisabled
+                      }
+                      className="action-btn save-btn"
+                    >
+                      <FaRegSave className="btn-icon" />
+                    </button>
+
+                    <button
+                      onClick={() => HandleApprove(index)}
+                      title="Approve"
+                      disabled={record.Status === "PRESENT"}
+                      className="action-btn approve-btn"
+                    >
+                      <FaThumbsUp className="btn-icon" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan="13" className="approve-all-cell">
+                  Approve All:
                 </td>
-                <td className="action-buttons">
+                <td>
                   <button
-                    onClick={() => HandleSave(index)}
-                    title="Save"
-                    disabled={
-                      record.Status === "PRESENT" ||
-                      savedRecords[`${record.USRID}_${record.PunchDate}`] ||
-                      buttonStatus[`${record.USRID}_${record.PunchDate}`]?.saveButtonDisabled
-                    }
-                    className="action-btn save-btn"
+                    onClick={HandleApproveAll}
+                    title="Approve All"
+                    className="approve-all-btn"
                   >
-                    <FaRegSave className="btn-icon" />
-                  </button>
-
-                  
-
-                  <button
-                    onClick={() => HandleApprove(index)}
-                    title="Approve"
-                    disabled={record.Status === "PRESENT"}
-                    className="action-btn approve-btn"
-                  >
-                    <FaThumbsUp className="btn-icon" />
+                    <FaThumbsUp className="btn-icon" /> APPROVE ALL
                   </button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan="13" className="approve-all-cell">
-                Approve All:
-              </td>
-              <td>
-                <button
-                  onClick={HandleApproveAll}
-                  title="Approve All"
-                  className="approve-all-btn"
-                >
-                  <FaThumbsUp className="btn-icon" /> APPROVE ALL
-                </button>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
       {filteredData.length > 0 && (
@@ -1154,7 +1076,7 @@ const Attendance = () => {
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            <i className="fas fa-chevron-left"></i> Previous
+            Previous
           </button>
 
           <span className="pagination-info">
@@ -1166,12 +1088,12 @@ const Attendance = () => {
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Next <i className="fas fa-chevron-right"></i>
+            Next
           </button>
         </div>
       )}
 
-      {/* Add popup JSX */}
+      {/* Remarks popup */}
       {popupRemarks.show && (
         <>
           <div className="remarks-popup-overlay" onClick={handlePopupClose} />
