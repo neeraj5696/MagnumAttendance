@@ -501,6 +501,7 @@ const Attendance = () => {
 
   const sqlDateTime = getCurrentSQLDateTime();
 
+  //SAVING ROUTE
   const HandleSave = async (index) => {
     const record = filteredData[index];
     const timeInput = timeInputs[index] || {};
@@ -525,16 +526,16 @@ const Attendance = () => {
     // Truncate or format values to fit SQL Server constraints
     const saveData = {
       // Use UserID (not USRID) to match server column name
-      UserID: record.USRID.substring(0, 50),
+      USRID: record.USRID.substring(0, 50),
       // Use Date (not PunchDate) to match server column name
-      Date: record.PunchDate.substring(0, 10),
-      // Use lowercase 'inTime' to match the column name in the database
+      Date: record.PunchDate.substring(0, 10),      
       inTime: formattedInTime,
       OutTime: formattedOutTime,
       Status: statusInput.substring(0, 50),
       EmpReason: reasonInput.substring(0, 500),
       EmpReqShow: "No",
-      ManagerApproal: "Pending", // Note the spelling
+      MailSend: "N",
+      ManagerApproval: "Pending", // Note the spelling
       DEPARTMENT: DEPARTMENT ? DEPARTMENT.substring(0, 100) : null,
       EmpDate: EmpDate
     };
@@ -585,62 +586,17 @@ const Attendance = () => {
     }
   };
 
-  const handleRequestApproval = async (index) => {
-    const record = filteredData[index];
-    const timeInput = timeInputs[index] || {};
-    const statusInput = statusInputs[index] || record.Status;
-    const reasonInput = reasonInputs[index] || "";
-
-    // Check if required fields are present
-    if (!record.USRID || !record.PunchDate || !timeInput.inTime || !timeInput.outTime) {
-      alert("User ID, Date, In Time, and Out Time are all required.");
-      return;
-    }
-
-    const approvalData = {
-      // Use UserID (not USRID) to match server column name
-      UserID: record.USRID,
-      // Use Date (not PunchDate) to match server column name
-      Date: record.PunchDate,
-      Status: statusInput,
-      EmpReason: reasonInput,
-      EmpReqShow: "Yes",
-      MailSend: "Y"
-    };
-
-    console.log("Requesting approval with data:", approvalData);
-
-    try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/request-approval`,
-        approvalData
-      );
-      console.log("Approval request response:", response.data);
-      alert("Approval requested successfully!");
-
-      // Update button status after request
-      await fetchButtonStatus(record.USRID, record.PunchDate);
-
-      fetchAttendanceData(); // Refresh data
-    } catch (error) {
-      console.error(
-        "Error requesting approval:",
-        error.response?.data || error.message
-      );
-      alert(
-        `Error requesting approval: ${error.response?.data?.error || error.message
-        }`
-      );
-    }
-  };
+ 
 
   const HandleApprove = async (index) => {
     const record = filteredData[index];
     const approveData = {
-      // Use UserID (not USRID) to match server column name
+      
       UserID: record.USRID,
-      // Use Date (not PunchDate) to match server column name
-      Date: record.PunchDate
+      Date: record.PunchDate,
+      EmpReqShow: "No",
+      ManagerApproval: "Pending",
+
     };
 
     console.log("Approving attendance with data:", approveData);
@@ -1158,17 +1114,7 @@ const Attendance = () => {
                     <FaRegSave className="btn-icon" />
                   </button>
 
-                  <button
-                    onClick={() => handleRequestApproval(index)}
-                    title="Request Approval"
-                    disabled={
-                      record.Status === "PRESENT" ||
-                      buttonStatus[`${record.USRID}_${record.PunchDate}`]?.requestApprovalDisabled
-                    }
-                    className="action-btn approval-btn"
-                  >
-                    <FaEnvelope className="btn-icon" />
-                  </button>
+                  
 
                   <button
                     onClick={() => HandleApprove(index)}
