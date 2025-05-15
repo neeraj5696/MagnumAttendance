@@ -108,86 +108,86 @@ app.get("/api/attendance", async (req, res) => {
     const pool = await sql.connect();
     console.log("✅ Database connected successfully!");
     
-    // Modified query to filter by specific user ID
+    // Use the correct query structure with proper field ordering
     const result = await pool.request()
       .input('userId', sql.VarChar, userId)
       .query(`
       WITH Punches AS (
-    SELECT USRID,
-            FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,  -- Only Date
-           FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,    -- Only Time
-           DEVUID
-    FROM BioStar2_ac.dbo.T_LG202502
-    WHERE USRID = @userId 
-    AND DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
-),
-FirstLastPunch AS (
-    SELECT USRID, PunchDate,
-           MIN(CASE WHEN DEVUID IN (547239461, 939342251, 546203817, 538167579) THEN PunchTime END) AS InTime,
-           MAX(CASE WHEN DEVUID IN (541654478, 538210081, 788932322, 111111111) THEN PunchTime END) AS OutTime
-    FROM Punches
-    GROUP BY USRID, PunchDate
-),
-TimeInnings AS (
-    SELECT USRID, PunchDate, PunchTime,
-           LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) AS NextPunch,
-           CASE
-               WHEN (ROW_NUMBER() OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) % 2) = 1
-               THEN DATEDIFF(SECOND, PunchTime, LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime))
-               ELSE NULL
-           END AS InTimeInnings
-    FROM Punches
-),
-UserDetails AS (
-    SELECT 
-        u.USRID,
-        u.NM AS Employee_Name,
-        u.USRUID,
-        u.DEPARTMENT,
-        u.TITLE,
-        f5.VAL AS Manager_Name,
-        f6.VAL AS HR_Mail,
-        f7.VAL AS Manager_Email
-    FROM BioStar2_ac.dbo.T_USR u
-    LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f5 ON u.USRUID = f5.USRUID AND f5.CUSFLDUID = 5
-    LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f6 ON u.USRUID = f6.USRUID AND f6.CUSFLDUID = 6
-    LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f7 ON u.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
-    WHERE u.USRID = @userId
-)
-SELECT 
-    FLP.USRID,
-    ud.Employee_Name,
-    ud.DEPARTMENT,
-    ud.TITLE,
-    FLP.PunchDate,
-    COALESCE(FLP.InTime, '--') AS InTime,
-    COALESCE(FLP.OutTime, '--') AS OutTime,
-    FORMAT(DATEADD(SECOND, COALESCE(SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_InTime,
-    FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) - SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_OutTime,
-    FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
-    CASE
-        WHEN FLP.InTime IS NULL THEN 'ABSENT'
-        WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) <= 5 * 3600 THEN 'HALF DAY'  -- Less than 5 hours
-        ELSE 'PRESENT'
-    END AS Status,
-    ud.Manager_Name,
-    ud.Manager_Email,
-    ud.HR_Mail
-FROM FirstLastPunch FLP
-LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
-LEFT JOIN UserDetails ud ON FLP.USRID = ud.USRID
-GROUP BY 
-    FLP.USRID, 
-    ud.Employee_Name, 
-    FLP.PunchDate, 
-    FLP.InTime, 
-    FLP.OutTime, 
-    ud.DEPARTMENT, 
-    ud.TITLE, 
-    ud.Manager_Name, 
-    ud.Manager_Email, 
-    ud.HR_Mail
-ORDER BY FLP.PunchDate DESC;
+        SELECT USRID,
+                FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
+               FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
+               DEVUID
+        FROM BioStar2_ac.dbo.T_LG202502
+        WHERE DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
+      ),
+      FirstLastPunch AS (
+        SELECT USRID, PunchDate,
+               MIN(CASE WHEN DEVUID IN (547239461, 939342251, 546203817, 538167579) THEN PunchTime END) AS InTime,
+               MAX(CASE WHEN DEVUID IN (541654478, 538210081, 788932322, 111111111) THEN PunchTime END) AS OutTime
+        FROM Punches
+        GROUP BY USRID, PunchDate
+      ),
+      TimeInnings AS (
+        SELECT USRID, PunchDate, PunchTime,
+               LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) AS NextPunch,
+               CASE
+                   WHEN (ROW_NUMBER() OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) % 2) = 1
+                   THEN DATEDIFF(SECOND, PunchTime, LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime))
+                   ELSE NULL
+               END AS InTimeInnings
+        FROM Punches
+      ),
+      UserDetails AS (
+        SELECT 
+            u.USRID,
+            u.NM AS Employee_Name,
+            u.USRUID,
+            u.DEPARTMENT,
+            u.TITLE,
+            f5.VAL AS HR_Mail,
+            f6.VAL AS Manager_Email,
+            f7.VAL AS Manager_Name
+        FROM BioStar2_ac.dbo.T_USR u
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f5 ON u.USRUID = f5.USRUID AND f5.CUSFLDUID = 5
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f6 ON u.USRUID = f6.USRUID AND f6.CUSFLDUID = 6
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f7 ON u.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
+      )
+      SELECT 
+        FLP.USRID,
+        ud.Employee_Name,
+        ud.DEPARTMENT,
+        ud.TITLE,
+        FLP.PunchDate,
+        COALESCE(FLP.InTime, '--') AS InTime,
+        COALESCE(FLP.OutTime, '--') AS OutTime,
+        FORMAT(DATEADD(SECOND, COALESCE(SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_InTime,
+        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) - SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_OutTime,
+        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
+        CASE
+            WHEN FLP.InTime IS NULL THEN 'ABSENT'
+            WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) <= 5 * 3600 THEN 'HALF DAY'
+            ELSE 'PRESENT'
+        END AS Status,
+        ud.Manager_Name,
+        ud.Manager_Email,
+        ud.HR_Mail
+      FROM FirstLastPunch FLP
+      LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
+      LEFT JOIN UserDetails ud ON FLP.USRID = ud.USRID
+      WHERE (ud.Employee_Name IS NOT NULL) AND
+        (FLP.USRID = @userId OR ud.Manager_Name = (SELECT NM FROM BioStar2_ac.dbo.T_USR WHERE USRID = @userId))
+      GROUP BY 
+        FLP.USRID, 
+        ud.Employee_Name, 
+        FLP.PunchDate, 
+        FLP.InTime, 
+        FLP.OutTime, 
+        ud.DEPARTMENT, 
+        ud.TITLE, 
+        ud.Manager_Name, 
+        ud.Manager_Email, 
+        ud.HR_Mail
+      ORDER BY FLP.PunchDate DESC;
       `);
 
     console.log(`Found ${result.recordset.length} records for user ${userId}`);
@@ -207,15 +207,19 @@ app.get("/api/LOGIN", async (req, res) => {
     console.log("✅ Database connected successfully on Vercel!"); // ✅ Logs in the console instead
     const result = await pool.request().query(`
     SELECT DISTINCT
-    U.USRID,
-    U.NM AS name,
-    U.EML AS email,
-    U.DEPARTMENT
-FROM 
-    (SELECT DISTINCT USRID FROM dbo.T_LG202402) AS LG
-INNER JOIN 
-    dbo.T_USR AS U ON LG.USRID = U.USRID;
-
+      U.USRID,
+      U.NM AS name,
+      U.EML AS email,
+      U.DEPARTMENT,
+      f7.VAL AS Manager_Name
+    FROM 
+      (SELECT DISTINCT USRID FROM dbo.T_LG202402) AS LG
+    INNER JOIN 
+      dbo.T_USR AS U ON LG.USRID = U.USRID
+    LEFT JOIN 
+      dbo.T_USRCUSFLD f7 ON U.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
+    WHERE 
+      U.NM IS NOT NULL;
     `);
 
     res.json(result.recordset);
@@ -477,6 +481,281 @@ app.post("/api/approve-all", async (req, res) => {
   } catch (error) {
     console.error("Error approving all attendance:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// New endpoint to fetch attendance data for managers (admins) who can see both their own and their employees' data
+app.get("/api/admin-attendance", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    console.log(`Fetching admin attendance data for user: ${userId}`);
+    
+    const pool = await sql.connect();
+    console.log("✅ Database connected successfully!");
+
+    // First, determine if the user is a SUPERADMIN by checking their Manager_Name
+    const checkUserRoleQuery = `
+      SELECT 
+          u.USRID,
+          u.NM AS Employee_Name,
+          f7.VAL AS Manager_Name
+      FROM BioStar2_ac.dbo.T_USR u
+      LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f7 ON u.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
+      WHERE u.USRID = @userId
+    `;
+
+    const userRoleCheck = await pool.request()
+      .input('userId', sql.VarChar, userId)
+      .query(checkUserRoleQuery);
+
+    // Check user's role
+    const isSuperAdmin = userRoleCheck.recordset.length > 0 && 
+                     userRoleCheck.recordset[0].Manager_Name === 'SUPERADMIN';
+    
+    const isManager = userRoleCheck.recordset.length > 0 && 
+                     userRoleCheck.recordset[0].Employee_Name !== null;
+    
+    const userName = userRoleCheck.recordset[0]?.Employee_Name || null;
+    
+    console.log(`User ${userId} is ${isSuperAdmin ? 'SUPERADMIN' : (isManager ? 'a manager' : 'a regular employee')}`);
+    
+    let query = '';
+    
+    if (isSuperAdmin) {
+      // For SUPERADMIN, fetch all users' attendance
+      query = `
+      WITH Punches AS (
+        SELECT USRID,
+              FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
+              FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
+              DEVUID
+        FROM BioStar2_ac.dbo.T_LG202502
+        WHERE DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
+      ),
+      FirstLastPunch AS (
+        SELECT USRID, PunchDate,
+              MIN(CASE WHEN DEVUID IN (547239461, 939342251, 546203817, 538167579) THEN PunchTime END) AS InTime,
+              MAX(CASE WHEN DEVUID IN (541654478, 538210081, 788932322, 111111111) THEN PunchTime END) AS OutTime
+        FROM Punches
+        GROUP BY USRID, PunchDate
+      ),
+      TimeInnings AS (
+        SELECT USRID, PunchDate, PunchTime,
+              LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) AS NextPunch,
+              CASE
+                  WHEN (ROW_NUMBER() OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) % 2) = 1
+                  THEN DATEDIFF(SECOND, PunchTime, LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime))
+                  ELSE NULL
+              END AS InTimeInnings
+        FROM Punches
+      ),
+      UserDetails AS (
+        SELECT 
+            u.USRID,
+            u.NM AS Employee_Name,
+            u.USRUID,
+            u.DEPARTMENT,
+            u.TITLE,
+            f5.VAL AS HR_Mail,
+            f6.VAL AS Manager_Email,
+            f7.VAL AS Manager_Name
+        FROM BioStar2_ac.dbo.T_USR u
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f5 ON u.USRUID = f5.USRUID AND f5.CUSFLDUID = 5
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f6 ON u.USRUID = f6.USRUID AND f6.CUSFLDUID = 6
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f7 ON u.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
+      )
+      SELECT 
+        FLP.USRID,
+        ud.Employee_Name,
+        ud.DEPARTMENT,
+        ud.TITLE,
+        FLP.PunchDate,
+        COALESCE(FLP.InTime, '--') AS InTime,
+        COALESCE(FLP.OutTime, '--') AS OutTime,
+        FORMAT(DATEADD(SECOND, COALESCE(SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_InTime,
+        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) - SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_OutTime,
+        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
+        CASE
+            WHEN FLP.InTime IS NULL THEN 'ABSENT'
+            WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) <= 5 * 3600 THEN 'HALF DAY'
+            ELSE 'PRESENT'
+        END AS Status,
+        ud.Manager_Name,
+        ud.Manager_Email,
+        ud.HR_Mail
+      FROM FirstLastPunch FLP
+      LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
+      LEFT JOIN UserDetails ud ON FLP.USRID = ud.USRID
+      WHERE ud.Employee_Name IS NOT NULL
+      GROUP BY 
+        FLP.USRID, 
+        ud.Employee_Name, 
+        FLP.PunchDate, 
+        FLP.InTime, 
+        FLP.OutTime, 
+        ud.DEPARTMENT, 
+        ud.TITLE, 
+        ud.Manager_Name, 
+        ud.Manager_Email, 
+        ud.HR_Mail
+      ORDER BY FLP.PunchDate DESC;
+      `;
+    } else {
+      // For regular managers, fetch their own attendance and their direct reports
+      query = `
+      WITH Punches AS (
+        SELECT USRID,
+              FORMAT(SRVDT, 'yyyy-MM-dd') AS PunchDate,
+              FORMAT(SRVDT, 'HH:mm:ss') AS PunchTime,
+              DEVUID
+        FROM BioStar2_ac.dbo.T_LG202502
+        WHERE DEVUID IN (547239461, 939342251, 546203817, 538167579, 541654478, 538210081, 788932322, 111111111)
+      ),
+      FirstLastPunch AS (
+        SELECT USRID, PunchDate,
+              MIN(CASE WHEN DEVUID IN (547239461, 939342251, 546203817, 538167579) THEN PunchTime END) AS InTime,
+              MAX(CASE WHEN DEVUID IN (541654478, 538210081, 788932322, 111111111) THEN PunchTime END) AS OutTime
+        FROM Punches
+        GROUP BY USRID, PunchDate
+      ),
+      TimeInnings AS (
+        SELECT USRID, PunchDate, PunchTime,
+              LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) AS NextPunch,
+              CASE
+                  WHEN (ROW_NUMBER() OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime) % 2) = 1
+                  THEN DATEDIFF(SECOND, PunchTime, LEAD(PunchTime) OVER (PARTITION BY USRID, PunchDate ORDER BY PunchTime))
+                  ELSE NULL
+              END AS InTimeInnings
+        FROM Punches
+      ),
+      UserDetails AS (
+        SELECT 
+            u.USRID,
+            u.NM AS Employee_Name,
+            u.USRUID,
+            u.DEPARTMENT,
+            u.TITLE,
+            f5.VAL AS HR_Mail,
+            f6.VAL AS Manager_Email,
+            f7.VAL AS Manager_Name
+        FROM BioStar2_ac.dbo.T_USR u
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f5 ON u.USRUID = f5.USRUID AND f5.CUSFLDUID = 5
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f6 ON u.USRUID = f6.USRUID AND f6.CUSFLDUID = 6
+        LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f7 ON u.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
+      )
+      SELECT 
+        FLP.USRID,
+        ud.Employee_Name,
+        ud.DEPARTMENT,
+        ud.TITLE,
+        FLP.PunchDate,
+        COALESCE(FLP.InTime, '--') AS InTime,
+        COALESCE(FLP.OutTime, '--') AS OutTime,
+        FORMAT(DATEADD(SECOND, COALESCE(SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_InTime,
+        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) - SUM(TI.InTimeInnings), 0), 0), 'HH:mm:ss') AS Total_OutTime,
+        FORMAT(DATEADD(SECOND, COALESCE(DATEDIFF(SECOND, FLP.InTime, FLP.OutTime), 0), 0), 'HH:mm:ss') AS Actual_Working_Hours,
+        CASE
+            WHEN FLP.InTime IS NULL THEN 'ABSENT'
+            WHEN DATEDIFF(SECOND, FLP.InTime, FLP.OutTime) <= 5 * 3600 THEN 'HALF DAY'
+            ELSE 'PRESENT'
+        END AS Status,
+        ud.Manager_Name,
+        ud.Manager_Email,
+        ud.HR_Mail
+      FROM FirstLastPunch FLP
+      LEFT JOIN TimeInnings TI ON FLP.USRID = TI.USRID AND FLP.PunchDate = TI.PunchDate
+      LEFT JOIN UserDetails ud ON FLP.USRID = ud.USRID
+      WHERE ud.Employee_Name IS NOT NULL AND 
+        (FLP.USRID = @userId OR ud.Manager_Name = @userName) -- Only direct reports
+      GROUP BY 
+        FLP.USRID, 
+        ud.Employee_Name, 
+        FLP.PunchDate, 
+        FLP.InTime, 
+        FLP.OutTime, 
+        ud.DEPARTMENT, 
+        ud.TITLE, 
+        ud.Manager_Name, 
+        ud.Manager_Email, 
+        ud.HR_Mail
+      ORDER BY FLP.PunchDate DESC;
+      `;
+    }
+
+    const result = await pool.request()
+      .input('userId', sql.VarChar, userId)
+      .input('userName', sql.NVarChar, userName)
+      .query(query);
+
+    console.log(`Found ${result.recordset.length} records for user ${userId} (${isSuperAdmin ? 'SUPERADMIN' : 'manager'} mode)`);
+    res.json(result.recordset);
+  } catch (error) {
+    console.error("❌ Database query failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint to check if a user is an admin based on Manager_Name being null
+app.get("/api/check-admin-status", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    const pool = await sql.connect();
+    
+    const checkUserRoleQuery = `
+      SELECT 
+          u.USRID,
+          u.NM AS Employee_Name,
+          f7.VAL AS Manager_Name
+      FROM BioStar2_ac.dbo.T_USR u
+      LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f7 ON u.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
+      WHERE u.USRID = @userId
+    `;
+
+    const userRoleCheck = await pool.request()
+      .input('userId', sql.VarChar, userId)
+      .query(checkUserRoleQuery);
+
+    // Check user's role
+    const isSuperAdmin = userRoleCheck.recordset.length > 0 && 
+                     userRoleCheck.recordset[0].Manager_Name === 'SUPERADMIN';
+    
+    // Regular manager check - has employees assigned to them
+    const getUsersManageredQuery = `
+      SELECT COUNT(*) AS EmployeeCount
+      FROM BioStar2_ac.dbo.T_USR u
+      LEFT JOIN BioStar2_ac.dbo.T_USRCUSFLD f7 ON u.USRUID = f7.USRUID AND f7.CUSFLDUID = 7
+      WHERE f7.VAL = (SELECT NM FROM BioStar2_ac.dbo.T_USR WHERE USRID = @userId)
+    `;
+    
+    const managerCheck = await pool.request()
+      .input('userId', sql.VarChar, userId)
+      .query(getUsersManageredQuery);
+    
+    const isManager = managerCheck.recordset[0].EmployeeCount > 0;
+    
+    console.log(`Role status check for user ${userId}: ${isSuperAdmin ? 'SUPERADMIN' : (isManager ? 'Manager' : 'Regular Employee')}`);
+    
+    res.json({ 
+      isSuperAdmin,
+      isManager,
+      isAdmin: isSuperAdmin, // For backwards compatibility
+      managerName: userRoleCheck.recordset[0]?.Manager_Name || null,
+      userName: userRoleCheck.recordset[0]?.Employee_Name || null,
+      employeeCount: managerCheck.recordset[0].EmployeeCount
+    });
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    res.status(500).json({ error: "Error checking admin status" });
   }
 });
 

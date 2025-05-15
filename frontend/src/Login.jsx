@@ -25,6 +25,9 @@ const Login = ({ setIsAuthenticated }) => {
 
     try {
       const response = await axios.get(`${API_BASE_URL}/api/LOGIN`);
+     const  dj=  await response.data;
+   //  console.log("Login response:", dj.map(dj=>dj.name));
+   //   const firstNames = users.map(user => user.firstName);
       const userRecord = response.data.find(record => record.USRID === userId);
       
       if (userRecord) {
