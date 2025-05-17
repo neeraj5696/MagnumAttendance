@@ -92,6 +92,9 @@ const Attendance = () => {
   // Constants
   const MAX_CHARS = 40;
 
+  // Add this with other state declarations
+  const dateRangeSetByUser = useRef(false);
+
   // =========== UTILITY FUNCTIONS ===========
   // Get time value from various formats
   const getTimeValue = (timeStr) => {
@@ -1242,7 +1245,7 @@ const Attendance = () => {
         setAvailableMonthRanges(ranges);
 
         // Find current month range to set as default
-        if (ranges.length > 0) {
+        if (ranges.length > 0 && !dateRangeSetByUser.current) {
           const currentDate = new Date();
           const currentMonthStr = format(currentDate, "yyyy-MM");
 
@@ -1380,6 +1383,28 @@ const Attendance = () => {
       setTimeInputs(initializeTimeFromDevice(filteredData));
     }
   }, [dateRange]);
+
+  // Auto-apply filter if attendance data for the current month is incomplete
+  useEffect(() => {
+    if (user && attendanceData && attendanceData.length > 0) {
+      // Find current month range
+      const now = new Date();
+      const start = startOfMonth(now);
+      const end = endOfMonth(now);
+      const daysInMonth = end.getDate();
+
+      // Count records for current month
+      const recordsThisMonth = attendanceData.filter(record => {
+        const d = parseISO(record.PunchDate);
+        return d >= start && d <= end;
+      });
+
+      if (recordsThisMonth.length < daysInMonth) {
+        // Not all days present, trigger filter to fill in placeholders
+        handleFilter();
+      }
+    }
+  }, [attendanceData, user]);
 
   // =========== CORE SAVE FUNCTIONALITY (KEPT UNCHANGED) ===========
   const HandleSave = async (index) => {
@@ -2302,6 +2327,17 @@ const Attendance = () => {
     setSelectedRows({});
   };
 
+  const managerAnalysis = JSON.parse(localStorage.getItem("managerAnalysis")) || {};
+  const isAdminOrSuperAdmin =
+    (managerAnalysis.superAdmins && user?.name && managerAnalysis.superAdmins.includes(user.name)) ||
+    user?.id === "2011090101" || user?.id === "2013090101";
+
+  useEffect(() => {
+    if (dateRange[0] && dateRange[1]) {
+      handleFilter();
+    }
+  }, [dateRange]);
+
   return (
     <div className="attendance-container">
       <header className="attendance-header">
@@ -2465,11 +2501,7 @@ const Attendance = () => {
                   endDate={endDate}
                   onChange={(update) => {
                     setDateRange(update);
-                    // Automatically apply the filter if both dates are selected
-                    if (update[0] && update[1]) {
-                      setDateRange(update);
-
-                    }
+                    // No auto-filtering here
                   }}
                   monthsShown={1}
                   className="hidden-date-picker"
@@ -2499,6 +2531,9 @@ const Attendance = () => {
                     },
                   ]}
                   popperPlacement="bottom-start"
+                  onMonthChange={() => {
+                    // Do nothing here! Just let the calendar view update.
+                  }}
                 />
               </div>
             </div>
@@ -2519,12 +2554,15 @@ const Attendance = () => {
             </div>
 
             <div className="filter-actions">
-              <button
-                className="filter-btn action-button"
-                onClick={handleFilter}
-              >
-                <FaFilter /> Apply
-              </button>
+              {/* Hide Apply button in production */}
+              {process.env.NODE_ENV !== "production" && (
+                <button
+                  className="filter-btn action-button"
+                  onClick={handleFilter}
+                >
+                  <FaFilter /> Apply
+                </button>
+              )}
             </div>
 
             <div className="filter-header">
@@ -2594,8 +2632,8 @@ const Attendance = () => {
                   <td>{record.Employee_Name}</td>
                   <td>{record.DEPARTMENT}</td>
                   <td>{record.PunchDate}</td>
-                  <td>{record.InTime || "--"}</td>
-                  <td>{record.OutTime || "--"}</td>
+                  <td>{getDeviceInTime(record)}</td>
+                  <td>{getDeviceOutTime(record)}</td>
                   <td>{record.Actual_Working_Hours || "00:00"}</td>
                   <td className="settime">
                     <div className="time-input-container">
@@ -2740,11 +2778,7 @@ const Attendance = () => {
                 </td>
                 <td>
                   {/* Show 'Approve All' button only for admin users */}
-                  {(user &&
-                    (user.id === "2011090101" || user.id === "2013090101")) ||
-                    (attendanceData[0]?.Manager_Name &&
-                      (attendanceData[0].Manager_Name === "Admin" ||
-                        attendanceData[0].Manager_Name === "SuperAdmin")) ? (
+                  {isAdminOrSuperAdmin ? (
                     <button
                       onClick={HandleApproveAll}
                       title={Object.values(selectedRows).filter(Boolean).length > 0
@@ -2756,7 +2790,16 @@ const Attendance = () => {
                         ? `Approve Selected`
                         : `Approve All`} <FaThumbsUp className="btn-icon" />
                     </button>
-                  ) : null}
+                  ) : (
+                    // Show 'Save All' button for employees
+                    <button
+                      onClick={HandleSaveAll}
+                      title="Save All Selected Records"
+                      className="approve-all-btn"
+                    >
+                      Save All <FaRegSave className="btn-icon" />
+                    </button>
+                  )}
                 </td>
               </tr>
             </tfoot>
