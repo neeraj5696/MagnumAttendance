@@ -98,7 +98,7 @@ body {
 }
 
 .action-button {
-  height: 30px;
+  
   display: flex;
   align-items: center;
   justify-content: center;
@@ -183,13 +183,20 @@ body {
 
 /* ========== FILTER SECTION ========== */
 .filters-section {
-  padding: 8px 12px;
+  padding-left: 15px;
+  padding-right: 15px;
   transition: all 0.3s ease;
   flex-shrink: 0;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  
+ 
 }
 
 .filter-wrapper {
   width: 100%;
+  
 }
 
 .filter-header {
@@ -203,9 +210,12 @@ body {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   width: 100%;
+  padding: 10px 0;
+  height: 50px
+
 }
 
 /* Filter item styles */
@@ -216,20 +226,187 @@ body {
 }
 
 .filter-item label {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: #555;
   margin-bottom: 2px;
   white-space: nowrap;
 }
 
+/* Update the 
+ name box styles */
+.manager-name-box {
+  width: 22%;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lead-owner-container {
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  height: 100%; /* Take full height of parent */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: white;
+ 
+  cursor: default; /* Change from pointer to default */
+}
+
+.lead-owner-label {
+  position: absolute;
+      top: 55px;
+      left: 28px;
+      font-size: 0.8rem;
+      color: #0078d4;
+      padding: 0 5px;
+      font-weight: 500;
+      background-color: white;
+      white-space: nowrap;
+      z-index: 1;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+}
+
+.lead-owner-value {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px; /* Reduced padding */
+  min-height: 24px;
+  font-size: 0.9rem; /* Slightly smaller font */
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 100%;
+  margin-right: 6px;
+  font-size: 1rem !important; /* Smaller icon */
+}
+
+/* Remove the arrow since we don't need dropdown functionality */
+.lead-owner-arrow {
+  display: none;
+}
+
+/* Adjust the filter grid layout */
+.filter-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start; /* Align items to top */
+  gap: 8px; /* Reduced gap */
+  width: 100%;
+  padding: 8px 0; /* Reduced padding */
+  height: 40px;
+}
+
+/* Ensure all filter items have consistent height */
+.filter-item {
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Adjust the select containers to match height */
+.select-container {
+  height: 40px;
+}
+
+/* Make date picker wrapper match height */
+.date-picker-wrapper {
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+/* Make checkbox container match height */
+.checkbox-container {
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.manager-name-box {
+  width: 22%;
+  min-width: 220px;
+  height:100% ;
+}
+
+.manager-paper {
+  width: 100%;
+  height: 100%;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.manager-box {
+  display: flex;
+  flex-direction: column; /* Keep this for the label above */
+  padding: 8px 10px; /* Adjust padding to match lead-owner-value */
+ 
+  position: relative; /* For the arrow */
+  border: 1px solid #ccc; /* Add border */
+  border-radius: 4px; /* Add border radius */
+  background-color: white; /* Add background color */
+  cursor: default; /* Make it look like an input */
+}
+
+.manager-box::after {
+  content: '\25BE'; /* Down arrow Unicode character */
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 1.2rem !important;
+  pointer-events: none; /* Prevent interaction with the arrow */
+}
+
+.manager-box:hover {
+  border-color: #0078d4; /* Add hover effect like lead-owner */
+}
+
+.manager-label {
+  font-size: 0.8rem !important; /* Match lead-owner-label */
+  color: #0078d4 !important; /* Match lead-owner-label color */
+  padding: 2px 4px; /* Adjust padding */
+  font-weight: 500 !important;
+  position: static; /* Position the label above the value */
+  background-color: transparent; /* Remove background */
+  z-index: auto; /* Reset z-index */
+  margin-bottom: 2px; /* Add some space below the label */
+}
+
+.manager-value-container {
+  display: flex;
+  align-items: center; /* Align items vertically in the container */
+  gap: 8px;
+  margin-top: 0; /* Remove top margin */
+  padding: 0; /* Remove padding */
+}
+
+.manager-icon {
+  color: #666; /* Match lead-owner-icon color */
+  margin-right: 8px;
+  font-size: 1.2rem !important;
+}
+
+.manager-value {
+  font-size: 1rem !important;
+  font-weight: 400 !important; /* Adjust font weight if needed */
+  color: #333;
+  flex-grow: 1; /* Allow value to take available space */
+}
+
 .employee-select {
-  width: 20%;
-  min-width: 150px;
+  width: 22%;
+  min-width: 180px;
 }
 
 .date-range-picker {
-  width: 35%;
+  width: 30%;
   min-width: 200px;
 }
 
@@ -242,8 +419,8 @@ body {
 }
 
 .filter-actions {
-  width: 10%;
-  min-width: 80px;
+  width: 15%;
+  min-width: 90px;
   display: flex;
   justify-content: center;
 }
@@ -251,7 +428,7 @@ body {
 /* Filter controls */
 .select-container {
   position: relative;
-  height: 35px;
+  height: 40px;
 }
 
 .filter-select {
@@ -260,14 +437,14 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 35px;
+  height: 40px;
   border: 1px solid #ddd;
   border-radius: 4px;
   padding: 0 25px 0 10px;
   background-color: #fff;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   color: #333;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   width: 100%;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238e6fef' d='M6 8.825l-4.9-4.9 1.415-1.415L6 6l3.485-3.485 1.415 1.415z'/%3E%3C/svg%3E");
@@ -280,26 +457,55 @@ body {
   border-color: #8e6fef;
 }
 
-.manager-name-display {
-  display: flex;
-  align-items: center;
-  padding: 6px 10px;
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  height: 35px;
-  font-size: 0.85rem;
-  color: #333;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.filter-select:focus {
+  outline: none;
+  border-color: #8e6fef;
+  box-shadow: 0 0 0 2px rgba(142, 111, 239, 0.2);
 }
 
+/* Buttons styling */
+.filter-btn, .reset-btn {
+  height: 40px;
+  padding: 0 15px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.filter-btn {
+  background-color: #8e6fef;
+  color: white;
+  border: none;
+}
+
+.filter-btn:hover {
+  background-color: #7a5df0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(142, 111, 239, 0.3);
+}
+
+.reset-btn {
+  background-color: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.reset-btn:hover {
+  background-color: #e9e9e9;
+  color: #444;
+}
+
+/* Date picker and checkbox styling */
 .date-picker-wrapper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 10px;
   background-color: #fff;
   border: 1px solid #ddd;
@@ -310,7 +516,8 @@ body {
   text-overflow: ellipsis;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  height: 35px;
+  height: 40px;
+  font-size: 0.95rem;
 }
 
 .date-picker-wrapper:hover {
@@ -318,16 +525,21 @@ body {
 }
 
 .date-picker-wrapper span {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.date-picker-wrapper .icon {
+  font-size: 1.1rem;
+  color: #8e6fef;
+}
+
 .checkbox-container {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 10px;
   background-color: #fff;
   border: 1px solid #ddd;
@@ -335,23 +547,28 @@ body {
   cursor: pointer;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  height: 35px;
+  height: 40px;
 }
 
 .checkbox-container:hover {
   border-color: #8e6fef;
 }
 
+.checkbox-container .icon {
+  font-size: 1.1rem;
+  color: #e9c200;
+}
+
 .checkbox-label {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
 }
 
 .checkbox-group input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   accent-color: #8e6fef;
   cursor: pointer;
 }
@@ -440,12 +657,9 @@ body {
 /* Fix the calendar z-index and make it visible above other elements */
 .react-datepicker-popper {
   z-index: 1000 !important;
-
   inset: auto auto auto 0 !important;
   transform: translate(0, 38px) !important;
-
   left: 22% !important;
-  
 }
 
 .calendar-popper {
@@ -514,6 +728,70 @@ body {
 
 .react-datepicker__navigation--next {
   right: 10px !important;
+}
+
+/* Responsive styles */
+@media screen and (max-width: 992px) {
+  .filter-grid {
+    flex-wrap: wrap;
+  }
+
+  .manager-name{
+    margin-top: 90px;
+  }
+  
+  .manager-name-box,
+  .employee-select,
+  .date-range-picker {
+    width: calc(50% - 7px);
+    min-width: auto;
+  }
+  
+  .checkbox-group,
+  .filter-actions {
+    width: calc(50% - 7px);
+    min-width: auto;
+    margin-top: 10px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .manager-name-box,
+  .employee-select {
+    width: calc(50% - 7px);
+  }
+  
+  .date-range-picker {
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  .checkbox-group,
+  .filter-actions {
+    width: calc(50% - 7px);
+    margin-top: 10px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .filter-grid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .manager-name-box,
+  .employee-select,
+  .date-range-picker,
+  .checkbox-group,
+  .filter-actions {
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  .manager-name-box,
+  .employee-select {
+    margin-top: 0;
+  }
 }
 
 /* ========== TABLE CONTAINER ========== */
@@ -900,23 +1178,27 @@ select {
   }
   
   .filter-grid {
-    flex-wrap: wrap;
-    width: 100%;
+       width: 100%;
     gap: 5px;
+    height: 40px;
   }
   
-  .employee-select, .date-range-picker {
+  .employee-select, .date-range-picker,  .manager-name-box {
     width: 20%;
+    height: 100%;
   }
   
-  .checkbox-group, .filter-actions {
-    width: 20%;
-    margin-top: 2px;
+  .checkbox-group,
+  .filter-actions {
+    width: 15%;
+  
+  
   }
   
   .filter-header {
     padding: 2px 0;
   }
+
 }
 
 /* 1080p - Standard screens */
@@ -991,6 +1273,117 @@ select {
   border-top: none;
   background-color: #f5f7fa;
   font-size: 0.8rem;
+}
+
+/* Responsive styles */
+@media screen and (max-width: 992px) {
+  .filter-grid {
+    flex-wrap: wrap;
+  }
+  
+  .manager-select,
+  .employee-select,
+  .date-range-picker {
+    width: calc(50% - 5px);
+    min-width: auto;
+  }
+  
+  .checkbox-group,
+  .filter-actions {
+    width: calc(50% - 5px);
+    min-width: auto;
+    margin-top: 10px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .manager-select,
+  .employee-select {
+    width: calc(50% - 5px);
+  }
+  
+  .date-range-picker {
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  .checkbox-group,
+  .filter-actions {
+    width: calc(50% - 5px);
+    margin-top: 10px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .filter-grid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .manager-select,
+  .employee-select,
+  .date-range-picker,
+  .checkbox-group,
+  .filter-actions {
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  .manager-select,
+  .employee-select {
+    margin-top: 0;
+  }
+}
+
+/* ========== LOADING ANIMATION ========== */
+.loading-progress {
+  height: 4px !important;
+  margin: 0 !important;
+}
+
+/* Customize Material UI Linear Progress */
+.MuiLinearProgress-root {
+  background-color: #e3f2fd !important; /* Light blue background */
+}
+
+.MuiLinearProgress-bar {
+  background-color: #2196f3 !important; /* Brighter blue for the progress */
+}
+
+/* ========== MANAGER NAME / LEAD OWNER STYLES ========== */
+
+/* ========== MANAGER NAME STYLES ========== */
+
+/* Checkbox styles */
+.row-checkbox, .select-all-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #2d9c4e;
+}
+
+.select-all-checkbox {
+  margin: 0;
+}
+
+.col-select {
+  text-align: center;
+  width: 40px;
+}
+
+/* Style for rows that are selected */
+tr.selected-row {
+  background-color: rgba(45, 156, 78, 0.1) !important;
+}
+
+/* Count badge for selected items */
+.selected-count {
+  background-color: #2d9c4e;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  margin-left: 5px;
 }
 
 
